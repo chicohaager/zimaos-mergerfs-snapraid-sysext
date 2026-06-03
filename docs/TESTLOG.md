@@ -1,7 +1,7 @@
 # Hardware test log — zimaos-mergerfs-snapraid-sysext
 
-**Host:** zimaos-143 (ZimaCube Pro, amd64, ZimaOS 1.6.1, kernel 6.12.25)
-**Date:** 2026-05-30 · **Operator:** zuse (Holgi authorized) · **Plan:** [TESTPLAN.md](TESTPLAN.md)
+**Host:** ZimaCube Pro (amd64, ZimaOS 1.6.1, kernel 6.12.25)
+**Date:** 2026-05-30 · **Operator:** maintainer · **Plan:** [TESTPLAN.md](TESTPLAN.md)
 
 **Test rig:** single throwaway disk `/dev/sdd` (Hitachi HTS723232, 298 GiB), GPT,
 3× ext4: `SR-DATA1` (80 G), `SR-DATA2` (80 G), `SR-PARITY` (~135 G). Mounted at
@@ -15,7 +15,7 @@
 | # | Phase | Result |
 |---|---|---|
 | 0 | sysext build + merge (earlier) | ✅ gzip `.raw`, merged, binaries on `/usr/bin` |
-| 1 | Partition + format `/dev/sdd` (by Holgi) | ✅ 3× ext4 labelled |
+| 1 | Partition + format `/dev/sdd` (by maintainer) | ✅ 3× ext4 labelled |
 | 2 | Mount by label | ✅ data1/data2 by LABEL; parity by device (see G2) |
 | 3 | Pool start via `mergerfs-pool.service` | ✅ `active`, `/DATA/StorageTest` = fuse.mergerfs 157 G |
 | 4 | Write 32 files (~296 MB) | ✅ even spread 16/16 across branches (`category.create=mfs`) |
@@ -127,7 +127,7 @@ re-merged `/usr` without our module. **Preserved:** d1=12, d2=12 files, parity
 
 ## Conclusion
 
-**Fully hardware-validated on zimaos-143 (amd64).** Build → merge → pool →
+**Fully hardware-validated on a ZimaCube Pro (amd64).** Build → merge → pool →
 sync/scrub → file recovery → mass-delete guard → disk replacement → boot-race →
 uninstall all pass. Single-spindle (no real fault tolerance) and arm64 remain the
 only untested dimensions.

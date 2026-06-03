@@ -1,7 +1,7 @@
 # Hardware test plan — zimaos-mergerfs-snapraid-sysext
 
-Host: **zimaos-143** (ZimaCube Pro, amd64, ZimaOS 1.6.1, kernel 6.12.25).
-Date: 2026-05-30. Operator: zuse (on Holgi's authorization).
+Host: **ZimaCube Pro** (amd64, ZimaOS 1.6.1, kernel 6.12.25).
+Date: 2026-05-30. Operator: maintainer.
 
 ## Destructive scope — READ FIRST
 
