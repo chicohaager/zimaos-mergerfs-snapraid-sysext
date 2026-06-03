@@ -1,0 +1,11 @@
+[Unit]
+Description=SnapRAID sync (ZimaOS)
+After=mergerfs-pool.service
+ConditionPathExists=/usr/bin/snapraid
+ConditionPathExists=/DATA/AppData/mergerfs-snapraid/config/snapraid.conf
+
+[Service]
+Type=oneshot
+Nice=10
+IOSchedulingClass=idle
+ExecStart=/DATA/AppData/mergerfs-snapraid/scripts/snapraid-sync.sh

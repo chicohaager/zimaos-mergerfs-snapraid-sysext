@@ -1,0 +1,9 @@
+[Unit]
+Description=Trigger mergerfs pool watchdog after boot
+
+[Timer]
+OnBootSec=15s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

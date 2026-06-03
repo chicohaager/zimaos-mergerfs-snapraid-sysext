@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="640" viewBox="0 0 860 640" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <!-- Theme-neutral: every shape has its own light fill + dark text, so contrast
+       holds on both light and dark page backgrounds. No reliance on page color. -->
+  <style>
+    .title { font-size: 20px; font-weight: 700; fill: #1f2937; }
+    .lbl   { font-size: 13px; font-weight: 700; fill: #1f2937; }
+    .mono  { font-size: 12px; fill: #374151; font-family: ui-monospace, "DejaVu Sans Mono", Menlo, Consolas, monospace; }
+    .note  { font-size: 11px; fill: #4b5563; font-style: italic; }
+    .layer { rx: 10; ry: 10; stroke-width: 1.5; }
+  </style>
+
+  <rect x="0" y="0" width="860" height="640" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="28" y="40" class="title">ZimaOS mergerfs + SnapRAID sysext — architecture</text>
+
+  <!-- Layer 1: sysext .raw -->
+  <rect class="layer" x="28" y="64" width="804" height="120" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="44" y="88" class="lbl">1 · sysext .raw  (read-only SquashFS, merged onto /usr at boot)</text>
+  <text x="44" y="112" class="mono">/usr/bin/{mergerfs, snapraid, mergerfs-fusermount, fsck.mergerfs}</text>
+  <text x="44" y="132" class="mono">/usr/lib/mergerfs/preload.so      /usr/sbin/mount.mergerfs</text>
+  <text x="44" y="152" class="mono">/usr/lib/extension-release.d/extension-release.mergerfs-snapraid  (ID=_any, ARCHITECTURE=…)</text>
+  <text x="44" y="172" class="note">binaries ONLY — never units. Lives in /var/lib/extensions/ (ext4, persistent).</text>
+
+  <!-- Layer 2: /etc units -->
+  <rect class="layer" x="28" y="200" width="804" height="116" fill="#dcfce7" stroke="#22c55e"/>
+  <text x="44" y="224" class="lbl">2 · /etc/systemd/system/  (persistent root — NOT in the sysext)</text>
+  <text x="44" y="248" class="mono">mergerfs-pool.service            After=systemd-sysext.service</text>
+  <text x="44" y="268" class="mono">mergerfs-pool-watchdog.{service,timer}   OnBootSec=15s  (boot-race fallback)</text>
+  <text x="44" y="288" class="mono">snapraid-sync.{service,timer} 04:00     snapraid-scrub.{service,timer} weekly</text>
+  <text x="44" y="306" class="note">units inside a sysext are invisible when multi-user.target resolves WantedBy= before the merge.</text>
+
+  <!-- Layer 3: config/state -->
+  <rect class="layer" x="28" y="332" width="804" height="96" fill="#fef9c3" stroke="#eab308"/>
+  <text x="44" y="356" class="lbl">3 · /DATA/AppData/mergerfs-snapraid/  (ext4, persistent — never /var, that's tmpfs)</text>
+  <text x="44" y="380" class="mono">config/pool.env      config/snapraid.conf      scripts/      logs/</text>
+  <text x="44" y="404" class="note">install.sh never overwrites existing config; uninstall.sh preserves all of this.</text>
+
+  <!-- Layer 4: storage -->
+  <rect class="layer" x="28" y="444" width="804" height="172" fill="#fae8ff" stroke="#a855f7"/>
+  <text x="44" y="468" class="lbl">4 · storage</text>
+
+  <!-- data disks -->
+  <rect x="44" y="482" width="150" height="46" rx="6" fill="#ffffff" stroke="#a855f7"/>
+  <text x="60" y="502" class="mono">/media/sda</text>
+  <text x="60" y="520" class="note">data disk (ext4)</text>
+  <rect x="204" y="482" width="150" height="46" rx="6" fill="#ffffff" stroke="#a855f7"/>
+  <text x="220" y="502" class="mono">/media/sdb</text>
+  <text x="220" y="520" class="note">data disk (ext4)</text>
+
+  <!-- pool -->
+  <rect x="430" y="482" width="190" height="46" rx="6" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="446" y="502" class="mono">mergerfs pool</text>
+  <text x="446" y="520" class="note">/DATA/Storage → Samba/clients</text>
+
+  <!-- arrows data->pool -->
+  <line x1="194" y1="505" x2="428" y2="505" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="354" y1="505" x2="428" y2="505" stroke="#7c3aed" stroke-width="1.5"/>
+
+  <!-- parity -->
+  <rect x="650" y="482" width="166" height="46" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="666" y="502" class="mono">/media/parity1</text>
+  <text x="666" y="520" class="note">parity — NOT pooled</text>
+
+  <!-- snapraid reads underlying disks -->
+  <rect x="44" y="548" width="576" height="50" rx="6" fill="#ffffff" stroke="#a855f7"/>
+  <text x="60" y="570" class="lbl">SnapRAID reads the underlying disks (/media/sda, /media/sdb), never the pool.</text>
+  <text x="60" y="588" class="note">parity disk ≥ largest data disk · prefer by-LABEL/UUID mounts for stable disk identity</text>
+  <line x1="620" y1="573" x2="730" y2="540" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+</svg>

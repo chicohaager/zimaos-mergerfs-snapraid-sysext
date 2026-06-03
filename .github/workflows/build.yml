@@ -1,0 +1,117 @@
+name: build-sysext
+
+# Builds the mergerfs+snapraid sysext for amd64 and arm64, smoke-tests the
+# binaries inside a matching-arch container (ldd must say "not a dynamic
+# executable" for snapraid; --version must run), and publishes both .raw images
+# plus SHA256SUMS as release artifacts.
+#
+# Pins: mergerfs 2.42.0 (official static tarball), SnapRAID 14.5 (static build).
+# Both confirmed present + latest via the GitHub release API on 2026-05-30.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+# Least privilege: read-only by default; only the publish job is granted write.
+# (Recommend also pinning each `uses:` action to a full commit SHA.)
+permissions:
+  contents: read
+
+env:
+  MERGERFS_VERSION: "2.42.0"
+  SNAPRAID_VERSION: "14.5"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+          - arch: arm64
+            platform: linux/arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU (cross-arch)
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install squashfs-tools
+        run: sudo apt-get update && sudo apt-get install -y squashfs-tools
+
+      - name: Build static snapraid (${{ matrix.arch }})
+        working-directory: build
+        env:
+          DOCKER_CONFIG: ""        # CI runner: use default docker config, not ZimaOS path
+        run: ./build-snapraid.sh ${{ matrix.arch }}
+
+      - name: Smoke-test snapraid (static + runnable) in ${{ matrix.platform }}
+        run: |
+          docker run --rm --platform ${{ matrix.platform }} \
+            -v "$PWD/build/out:/out" debian:bookworm-slim bash -c '
+              set -e
+              echo "--- ldd (expect: not a dynamic executable) ---"
+              ldd /out/snapraid-${{ matrix.arch }} || true
+              ldd /out/snapraid-${{ matrix.arch }} 2>&1 | grep -q "not a dynamic executable" \
+                || { echo "FAIL: snapraid is not static"; exit 1; }
+              /out/snapraid-${{ matrix.arch }} --version
+            '
+
+      - name: Assemble sysext .raw (${{ matrix.arch }})
+        working-directory: build
+        run: ./build-sysext.sh ${{ matrix.arch }}
+
+      - name: Smoke-test mergerfs binary from the tarball in ${{ matrix.platform }}
+        run: |
+          docker run --rm --platform ${{ matrix.platform }} \
+            -v "$PWD/build:/b" debian:bookworm-slim bash -c '
+              set -e
+              apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+              cd /tmp
+              curl -fSL -o m.tgz \
+                "https://github.com/trapexit/mergerfs/releases/download/${{ env.MERGERFS_VERSION }}/mergerfs-${{ env.MERGERFS_VERSION }}-static-linux_${{ matrix.arch }}.tar.gz"
+              tar -xzf m.tgz
+              ./usr/local/bin/mergerfs --version
+            '
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sysext-${{ matrix.arch }}
+          path: |
+            build/out/mergerfs-snapraid_${{ matrix.arch }}.raw
+            build/out/SHA256SUMS
+
+  publish:
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # only this job may attach release assets
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Flatten + merge SHA256SUMS
+        run: |
+          mkdir -p out
+          find dist -name '*.raw' -exec cp {} out/ \;
+          # Each matrix job wrote its own line; concatenate + de-dup into one file.
+          find dist -name 'SHA256SUMS' -exec cat {} \; | sort -u > out/SHA256SUMS
+          ls -l out
+          cat out/SHA256SUMS
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/mergerfs-snapraid_amd64.raw
+            out/mergerfs-snapraid_arm64.raw
+            out/SHA256SUMS

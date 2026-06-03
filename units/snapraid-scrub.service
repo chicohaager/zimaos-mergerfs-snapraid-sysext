@@ -1,0 +1,10 @@
+[Unit]
+Description=SnapRAID scrub (ZimaOS)
+ConditionPathExists=/usr/bin/snapraid
+ConditionPathExists=/DATA/AppData/mergerfs-snapraid/config/snapraid.conf
+
+[Service]
+Type=oneshot
+Nice=15
+IOSchedulingClass=idle
+ExecStart=/DATA/AppData/mergerfs-snapraid/scripts/snapraid-scrub.sh
