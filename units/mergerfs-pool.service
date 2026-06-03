@@ -1,0 +1,15 @@
+[Unit]
+Description=mergerfs storage pool (ZimaOS)
+# Order strictly after the sysext overlay is merged, else the binary is absent.
+After=systemd-sysext.service local-fs.target
+Wants=systemd-sysext.service
+ConditionPathExists=/usr/bin/mergerfs
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/DATA/AppData/mergerfs-snapraid/scripts/start-pool.sh
+ExecStop=/DATA/AppData/mergerfs-snapraid/scripts/stop-pool.sh
+
+[Install]
+WantedBy=multi-user.target

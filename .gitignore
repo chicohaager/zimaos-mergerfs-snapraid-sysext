@@ -1,0 +1,10 @@
+# Build artifacts — produced by build/build-snapraid.sh + build/build-sysext.sh,
+# published via CI to GitHub Releases (.github/workflows/build.yml). Reproducible,
+# so not tracked. install.sh reads them locally from build/out/ after a build or
+# a release download.
+/build/out/
+
+# Editor / OS cruft
+*.swp
+*~
+.DS_Store

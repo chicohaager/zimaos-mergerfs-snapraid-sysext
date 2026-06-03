@@ -1,0 +1,24 @@
+# SnapRAID configuration.
+# CRITICAL: data/parity lines point at the UNDERLYING disks, never at the
+# mergerfs pool mountpoint. Parity disk must be >= the largest data disk.
+
+# --- parity (one or more; second line = 2-parity for dual-disk fault tolerance) ---
+parity /media/parity1/snapraid.parity
+# 2-parity /media/parity2/snapraid.2-parity
+
+# --- content files (>=1; keep copies on different disks) ---
+content /DATA/AppData/mergerfs-snapraid/config/snapraid.content
+content /media/sda/snapraid.content
+content /media/sdb/snapraid.content
+
+# --- data disks (must match the mergerfs BRANCHES, minus parity) ---
+data d1 /media/sda
+data d2 /media/sdb
+
+# --- excludes ---
+exclude *.unrecoverable
+exclude /tmp/
+exclude /lost+found/
+exclude .Trash-*/
+exclude snapraid.content*
+exclude *.bak

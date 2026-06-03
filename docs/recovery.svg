@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="720" viewBox="0 0 760 720" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <style>
+    .title { font-size: 20px; font-weight: 700; fill: #1f2937; }
+    .step  { font-size: 14px; font-weight: 700; fill: #1f2937; }
+    .mono  { font-size: 12px; fill: #374151; font-family: ui-monospace, "DejaVu Sans Mono", Menlo, Consolas, monospace; }
+    .note  { font-size: 11px; fill: #4b5563; }
+    .warn  { font-size: 12px; font-weight: 700; fill: #991b1b; }
+  </style>
+
+  <rect x="0" y="0" width="760" height="720" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="28" y="40" class="title">Disk-failure recovery  (replace-disk.sh)</text>
+
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L7,3 L0,6 z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <!-- 0 detect -->
+  <rect x="200" y="60" width="360" height="58" rx="8" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="220" y="84" class="step">Data disk fails / drops out</text>
+  <text x="220" y="104" class="warn">Do NOT run snapraid sync while a disk is missing — it can overwrite recoverable parity.</text>
+  <line x1="380" y1="118" x2="380" y2="140" stroke="#475569" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- 1 mount replacement -->
+  <rect x="160" y="142" width="440" height="64" rx="8" fill="#e0f2fe" stroke="#0ea5e9"/>
+  <text x="180" y="166" class="step">1 · Mount a blank replacement at the SAME path</text>
+  <text x="180" y="186" class="mono">format ext4/xfs → mount at /media/sdX (the failed disk's path)</text>
+  <text x="180" y="200" class="note">ZimaOS may assign a different letter — prefer by-LABEL/UUID. ZimaOS UI may try to claim the disk.</text>
+  <line x1="380" y1="206" x2="380" y2="228" stroke="#475569" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- 2 guards -->
+  <rect x="160" y="230" width="440" height="74" rx="8" fill="#fef9c3" stroke="#eab308"/>
+  <text x="180" y="254" class="step">2 · replace-disk.sh d&lt;N&gt;  — guards</text>
+  <text x="180" y="274" class="mono">snapraid status  ·  refuse if path not a mount  ·  refuse exFAT/NTFS</text>
+  <text x="180" y="294" class="mono">stop sync+scrub timers  ·  stop pool  ·  confirm prompt</text>
+  <line x1="380" y1="304" x2="380" y2="326" stroke="#475569" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- 3 fix -->
+  <rect x="160" y="328" width="440" height="50" rx="8" fill="#dcfce7" stroke="#22c55e"/>
+  <text x="180" y="352" class="step">3 · snapraid -d d&lt;N&gt; fix</text>
+  <text x="180" y="370" class="note">rebuild ONLY this disk from parity + surviving data disks</text>
+  <line x1="380" y1="378" x2="380" y2="400" stroke="#475569" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- 4 check -->
+  <rect x="160" y="402" width="440" height="50" rx="8" fill="#dcfce7" stroke="#22c55e"/>
+  <text x="180" y="426" class="step">4 · snapraid check</text>
+  <text x="180" y="444" class="note">verify the rebuilt files against parity/hashes before trusting the array</text>
+  <line x1="380" y1="452" x2="380" y2="474" stroke="#475569" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- 5 sync -->
+  <rect x="160" y="476" width="440" height="50" rx="8" fill="#dcfce7" stroke="#22c55e"/>
+  <text x="180" y="500" class="step">5 · snapraid sync</text>
+  <text x="180" y="518" class="note">re-align parity to the recovered array state</text>
+  <line x1="380" y1="526" x2="380" y2="548" stroke="#475569" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- 6 restart -->
+  <rect x="160" y="550" width="440" height="50" rx="8" fill="#e0f2fe" stroke="#0ea5e9"/>
+  <text x="180" y="574" class="step">6 · restart pool + sync/scrub timers</text>
+  <text x="180" y="592" class="note">start-pool.sh re-mounts; timers re-armed automatically</text>
+  <line x1="380" y1="600" x2="380" y2="622" stroke="#475569" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- 7 verify -->
+  <rect x="200" y="624" width="360" height="58" rx="8" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="220" y="648" class="step">7 · Verify</text>
+  <text x="220" y="668" class="mono">snapraid status → no errors; scrub coverage climbs over time</text>
+</svg>

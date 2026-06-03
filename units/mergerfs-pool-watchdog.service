@@ -1,0 +1,14 @@
+[Unit]
+Description=Ensure mergerfs pool started after sysext merge (boot-race guard)
+# Same lesson as the ZimaOS tailscale/cron sysext modules: the WantedBy symlink
+# can resolve before systemd-sysext.service finishes merging. start-pool.sh is
+# idempotent (no-op if already mounted), so this is a safe fallback.
+After=systemd-sysext.service
+Wants=systemd-sysext.service
+
+[Service]
+Type=oneshot
+# Wait up to 30s for the sysext merge to expose the binary before starting the pool.
+# Otherwise, if the merge is slow, mergerfs-pool.service's ConditionPathExists fails
+# and the unit is silently skipped (not retried) — leaving the pool unmounted.
+ExecStart=/bin/sh -c 'for i in $(seq 1 30); do [ -x /usr/bin/mergerfs ] && break; sleep 1; done; exec systemctl start mergerfs-pool.service'
