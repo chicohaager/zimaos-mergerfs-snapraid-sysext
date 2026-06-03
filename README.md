@@ -6,7 +6,7 @@ packaged as a `systemd-sysext` module — same delivery mechanism as the ZimaOS
 writes to the read-only ZimaOS root, survives reboots and (with `ID=_any`)
 minor ZimaOS updates.
 
-> **Status: amd64 fully hardware-validated on zimaos-143 (2026-05-30).** Build →
+> **Status: amd64 fully hardware-validated on a ZimaCube Pro (2026-05-30).** Build →
 > merge → pool → sync/scrub → file recovery → mass-delete guard → `replace-disk.sh`
 > → **cold-boot boot-race (pool auto-mounted, timers armed)** → uninstall (data
 > preserved). Full log: [docs/TESTLOG.md](docs/TESTLOG.md).
@@ -29,7 +29,7 @@ minor ZimaOS updates.
 
 ## Verified facts
 
-Rows tagged **hw** were checked live on zimaos-143 (ZimaCube Pro, v1.6.1, kernel
+Rows tagged **hw** were checked live on a ZimaCube Pro (v1.6.1, kernel
 6.12.25, amd64) on 2026-05-30.
 
 | Item | Value | Conf. |
@@ -124,7 +124,7 @@ sudo /DATA/AppData/mergerfs-snapraid/scripts/snapraid-sync.sh   # first parity b
 
 Data and parity disks should be **ext4 or xfs**. exFAT/NTFS lack POSIX
 permissions, xattrs and hardlinks → mergerfs loses metadata and SnapRAID
-move-detection / `pool` view degrade. The current zimaos-143 test disks are
+move-detection / `pool` view degrade. The current test disks are
 **exFAT** — reformat (destructive) before using for a real array. SnapRAID also
 needs a dedicated **parity disk >= the largest data disk**.
 

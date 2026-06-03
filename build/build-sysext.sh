@@ -50,7 +50,7 @@ rm -f "${TREE}/mergerfs.tar.gz"
 
 # Relocate everything onto /usr/{bin,lib,sbin}. On ZimaOS /usr/local/bin does NOT
 # exist and the default PATH is only /usr/bin:/usr/sbin, so the binaries MUST live
-# in /usr/bin (verified on zimaos-143; this is what the tailscale/cron modules do).
+# in /usr/bin (verified on a ZimaCube Pro; this is what the tailscale/cron modules do).
 # sysext merges only /usr. The man page under usr/local/share is dropped (unneeded).
 if [ -d "${TREE}/usr/local" ]; then
     mkdir -p "${TREE}/usr/bin" "${TREE}/usr/lib"
