@@ -49,6 +49,9 @@ systemd-sysext status | grep -q "$NAME" || echo "WARNING: $NAME not listed in sy
 mkdir -p "${APP}/config" "${APP}/scripts" "${APP}/logs"
 cp -f "${HERE}/scripts/"*.sh "${APP}/scripts/"
 chmod +x "${APP}/scripts/"*.sh
+# mergerfs-tool.sh builds its runner image from this Dockerfile; ship it next to the
+# scripts so the wrapper finds it post-install (build/ is not part of the app dir).
+cp -f "${HERE}/build/Dockerfile.mergerfs-tools" "${APP}/scripts/" 2>/dev/null || true
 [ -f "${APP}/config/pool.env" ]      || cp "${HERE}/config/pool.env.example"      "${APP}/config/pool.env"
 [ -f "${APP}/config/snapraid.conf" ] || cp "${HERE}/config/snapraid.conf.example" "${APP}/config/snapraid.conf"
 
