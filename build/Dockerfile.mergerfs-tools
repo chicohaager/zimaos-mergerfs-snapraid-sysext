@@ -1,0 +1,34 @@
+# mergerfs-tools one-shot maintenance runner for ZimaOS.
+#
+# ZimaOS has no native Python (read-only Buildroot root, no apt). The upstream
+# trapexit/mergerfs-tools are pure-Python3 scripts (balance/consolidate/dup also
+# shell out to rsync), so we run them in a throwaway container that bind-mounts the
+# live pool + the branch roots. The storage RUNTIME stays 100% native (the sysext);
+# only this occasional maintenance step touches Docker.
+#
+# Build needs no local context (everything is fetched by ADD):
+#   docker build -t mergerfs-tools:local - < build/Dockerfile.mergerfs-tools
+FROM python:3-alpine
+
+# rsync: required by balance/consolidate/dup. coreutils/findutils: a couple of tools
+# assume GNU semantics over busybox (du/find flags).
+RUN apk add --no-cache rsync findutils coreutils
+
+# Pin to a specific upstream commit. trapexit/mergerfs-tools publishes NO tags or
+# releases, so the commit hash IS the integrity anchor (content-addressed, immutable).
+# Bump deliberately; never track a moving branch.
+ARG MFT_SHA=80d6c9511da554009415d67e7c0ead1256c1fc41
+ARG RAW=https://raw.githubusercontent.com/trapexit/mergerfs-tools/${MFT_SHA}/src
+ADD ${RAW}/mergerfs.balance     /usr/local/bin/mergerfs.balance
+ADD ${RAW}/mergerfs.consolidate /usr/local/bin/mergerfs.consolidate
+ADD ${RAW}/mergerfs.dedup       /usr/local/bin/mergerfs.dedup
+ADD ${RAW}/mergerfs.dup         /usr/local/bin/mergerfs.dup
+ADD ${RAW}/mergerfs.fsck        /usr/local/bin/mergerfs.fsck
+ADD ${RAW}/mergerfs.ctl         /usr/local/bin/mergerfs.ctl
+ADD ${RAW}/mergerfs.mktrash     /usr/local/bin/mergerfs.mktrash
+RUN chmod +x /usr/local/bin/mergerfs.*
+
+# Inside the container /usr/local/bin IS on PATH (unlike the ZimaOS host — that
+# /usr/local/bin caveat is host-only and does not apply here). No ENTRYPOINT: the
+# wrapper passes `mergerfs.<tool> <args...>` as the container command.
+WORKDIR /

@@ -54,8 +54,11 @@ Rows tagged **hw** were checked live on a ZimaCube Pro (v1.6.1, kernel
 build/Dockerfile.snapraid   static snapraid build (multi-stage, scratch export)
 build/build-snapraid.sh     build static snapraid per arch (buildx)
 build/build-sysext.sh       assemble .raw sysext per arch + SHA256SUMS
+build/Dockerfile.mergerfs-tools  one-shot runner image for the upstream mergerfs-tools
+build/build-mergerfs-tools.sh    pre-build that image (auto-built on first use too)
 units/                      systemd units (live in /etc, NOT in the sysext)
-scripts/                    start/stop pool, snapraid sync/scrub, replace-disk
+scripts/                    start/stop pool, snapraid sync/scrub, replace-disk,
+                            pool-status (native overview), mergerfs-tool (maintenance)
 config/*.example            pool.env + snapraid.conf templates
 install.sh / uninstall.sh   root installer (preserves data on uninstall)
 docs/                       architecture.svg + recovery.svg (theme-neutral)
@@ -146,6 +149,46 @@ then `fix -d d1` → `check` → `sync`, and finally restarts the pool + timers.
 Full flow: `docs/recovery.svg`.
 
 ![recovery](docs/recovery.svg)
+
+## Pool maintenance (mergerfs-tools)
+
+Two helpers wrap the upstream [trapexit/mergerfs-tools](https://github.com/trapexit/mergerfs-tools)
+so they're usable on ZimaOS *and* safe alongside SnapRAID:
+
+- **`pool-status.sh`** — native (no Docker, no Python). Per-branch fullness + the
+  spread between fullest/emptiest disk, so you know whether a balance is even worth it.
+- **`mergerfs-tool.sh`** — runs the Python tools in a throwaway container
+  (`build/Dockerfile.mergerfs-tools`, pinned to an upstream commit; auto-built on
+  first use). ZimaOS has no native Python, so the storage *runtime* stays native and
+  only this occasional maintenance step touches Docker.
+
+```sh
+T=/DATA/AppData/mergerfs-snapraid/scripts/mergerfs-tool.sh
+sudo "$T" status                          # native overview — start here
+sudo "$T" --quiesce balance               # equalize disk fullness (see SnapRAID note)
+sudo "$T" consolidate /DATA/Storage/Movies/SomeShow   # dry-run (print only)
+sudo "$T" --quiesce consolidate -e /DATA/Storage/Movies/SomeShow  # actually move
+sudo "$T" dedup /DATA/Storage             # dry-run; add -e (+ --quiesce) to remove
+sudo "$T" fsck /DATA/Storage              # audit perms/ownership (read-only)
+sudo "$T" ctl -m /DATA/Storage list values   # runtime branch/option introspection
+```
+
+> **🔴 SnapRAID safety.** `balance`, `consolidate`, `dedup`, `dup` physically *move*
+> files between disks. To SnapRAID a moved file looks **removed** from one disk and
+> **added** to another, so **parity is stale until the next `snapraid sync`**. Always
+> use **`--quiesce`** for data-moving runs: it stops the sync/scrub timers, runs the
+> tool, then re-syncs parity (with the mass-deletion guard's count relaxed, since the
+> "removals" are expected here) and re-arms the timers. `balance` has **no dry-run**
+> and refuses to run without `--quiesce` (or `--yes` if you'll sync manually). The
+> print-only tools (`consolidate`/`dedup`/`dup` without `-e`) are safe to run anytime.
+
+> **Status: hardware-validated on amd64 (2026-06-04, ZimaCube Pro, v1.6.1).** Full
+> `--quiesce balance` flow tested end-to-end on the single-spindle SR test rig: 14 GB
+> unbalanced (19%/1%) → balance moved 13 files → 11%/9%, post-balance `snapraid sync`
+> survived the moved-as-deleted guard, `snapraid check` = "Everything OK", and the
+> file manifest was byte-identical before/after. **Same caveats as the storage core:**
+> single-spindle (validates every code path, not real multi-disk fault tolerance), and
+> **arm64 is unbuilt/untested** for the runner. Dry-run first on real data.
 
 ## Troubleshooting
 
