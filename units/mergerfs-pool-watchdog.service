@@ -8,7 +8,8 @@ Wants=systemd-sysext.service
 
 [Service]
 Type=oneshot
-# Wait up to 30s for the sysext merge to expose the binary before starting the pool.
-# Otherwise, if the merge is slow, mergerfs-pool.service's ConditionPathExists fails
-# and the unit is silently skipped (not retried) — leaving the pool unmounted.
-ExecStart=/bin/sh -c 'for i in $(seq 1 30); do [ -x /usr/bin/mergerfs ] && break; sleep 1; done; exec systemctl start mergerfs-pool.service'
+# Wait up to 60s for the sysext merge to complete before starting the pool. The signal
+# is /usr/bin/snapraid (sysext-only) — NOT /usr/bin/mergerfs, which the ZimaOS base
+# always provides as a stale v1.5.4 and would trip us into starting too early. Only
+# call systemctl start once merged; if it never merges, exit 0 (no false failure).
+ExecStart=/bin/sh -c 'for i in $(seq 1 60); do [ -x /usr/bin/snapraid ] && exec systemctl start mergerfs-pool.service; sleep 1; done; echo "sysext not merged after 60s — pool not started"; exit 0'
