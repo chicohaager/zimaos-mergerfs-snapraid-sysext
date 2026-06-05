@@ -52,7 +52,16 @@ chmod +x "${APP}/scripts/"*.sh
 # mergerfs-tool.sh builds its runner image from this Dockerfile; ship it next to the
 # scripts so the wrapper finds it post-install (build/ is not part of the app dir).
 cp -f "${HERE}/build/Dockerfile.mergerfs-tools" "${APP}/scripts/" 2>/dev/null || true
-[ -f "${APP}/config/pool.env" ]      || cp "${HERE}/config/pool.env.example"      "${APP}/config/pool.env"
+if [ -f "${APP}/config/pool.env" ]; then
+    # A reinstall (e.g. after an earlier failed install) KEEPS the existing pool.env
+    # so snapraid.conf etc. are preserved. But a stale pool.env with wrong BRANCHES or
+    # missing branches-mount-timeout will reproduce the boot race — warn loudly.
+    echo "NOTE: keeping existing ${APP}/config/pool.env (not overwritten)."
+    grep -q "branches-mount-timeout" "${APP}/config/pool.env" \
+        || echo "  WARNING: pool.env has no branches-mount-timeout — compare it against config/pool.env.example"
+else
+    cp "${HERE}/config/pool.env.example" "${APP}/config/pool.env"
+fi
 [ -f "${APP}/config/snapraid.conf" ] || cp "${HERE}/config/snapraid.conf.example" "${APP}/config/snapraid.conf"
 
 # Harden: pool.env is shell-sourced as ROOT at boot and the scripts run as ROOT via

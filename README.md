@@ -103,7 +103,7 @@ sudo /DATA/AppData/mergerfs-snapraid/scripts/snapraid-sync.sh   # first parity b
   from the tailscale/cron modules: a unit *inside* the sysext isn't visible when
   `multi-user.target` resolves `WantedBy=` before `systemd-sysext.service` merges.
   Here only the *binaries* are in the sysext; the pool service is ordered
-  `After=systemd-sysext.service` and a 15s watchdog timer is a fallback. **sicher** (reasoning), **unsicher** (until reboot-tested)
+  `After=systemd-sysext.service` and a 60s watchdog timer is a fallback. **sicher** (reasoning)
 - **`extension-release` uses `ID=_any` + `ARCHITECTURE`** so the image survives
   ZimaOS minor updates without re-install, while refusing a wrong-arch merge.
   The systemd `ARCHITECTURE` token is **`x86-64`** for amd64 and **`arm64`** for
@@ -111,10 +111,25 @@ sudo /DATA/AppData/mergerfs-snapraid/scripts/snapraid-sync.sh   # first parity b
   amd64 differs). `build-sysext.sh` maps them. **sicher**
   Alternative (stricter, re-install per update like the tailscale module):
   set `ID=zimaos` + `VERSION_ID=1.6.1` in `build-sysext.sh`. **wahrscheinlich**
-- **Boot-race ordering for the automounts:** `pool.env` ships
-  `branches-mount-timeout=30` so mergerfs waits for the ZimaOS `/media/sdX`
-  mounts at boot instead of failing on an empty branch. Option exists in
-  mergerfs ≥2.40. **wahrscheinlich**
+- **Two independent boot races (root cause of the `watchdog failed` report):**
+  - **(1) sysext-merge race — this is what fails the watchdog.** The ZimaOS base
+    ships an *ancient* mergerfs **v1.5.4** at `/usr/bin/mergerfs`, so gating on that
+    path (the old `ConditionPathExists=/usr/bin/mergerfs` + watchdog `[ -x ]`) is
+    useless: it is satisfied **before** the merge by the stale base binary, which
+    then rejects modern `-o` options and fails `mergerfs-pool.service` → the watchdog
+    that re-`start`s it also fails. **Fix:** gate on **`/usr/bin/snapraid`**, which is
+    provided *only* by this sysext, so its presence truly means "merge done"; the
+    watchdog waits up to 60s for it and never false-fails. `start-pool.sh` carries the
+    same guard for manual runs. *Verified on .143 (2026-06-05):* with the sysext
+    unmerged, `/usr/bin/mergerfs`=v1.5.4 exists while `/usr/bin/snapraid` is absent.
+  - **(2) automount race — empty/degraded pool.** The ZimaOS storage daemon mounts
+    the data disks at `/media/sdX` late, with **no** unit to order against. mergerfs
+    2.42 does *not* fail on an unmounted/missing branch (verified: exit 0) — it mounts
+    an **empty** pool and shadows the disk when it appears later ("not recognized").
+    **Fix:** `start-pool.sh` waits (default `BRANCH_WAIT=90`s) for every branch to be a
+    mountpoint / non-empty and refuses a truly-absent branch; `branches-mount-timeout`
+    stays as a second layer. *Verified on .143:* wait-then-mount + refuse-missing both
+    pass. **sicher** (component-tested); full cold-boot reboot test still pending.
 - **SnapRAID disk identity:** SnapRAID keys disks by path; ZimaOS assigns
   `/media/sdX` by detection order, so a replacement can land on a different
   letter. Prefer by-LABEL/UUID mounts; `replace-disk.sh` reconciles the path and

@@ -1,9 +1,14 @@
 [Unit]
 Description=mergerfs storage pool (ZimaOS)
-# Order strictly after the sysext overlay is merged, else the binary is absent.
+# Order strictly after the sysext overlay is merged.
 After=systemd-sysext.service local-fs.target
 Wants=systemd-sysext.service
-ConditionPathExists=/usr/bin/mergerfs
+# Gate on /usr/bin/snapraid, NOT /usr/bin/mergerfs: the ZimaOS base already ships an
+# ancient mergerfs (v1.5.4) at /usr/bin/mergerfs, so that path ALWAYS exists and is a
+# useless "merge happened" signal — pre-merge it runs start-pool.sh against v1.5.4,
+# which rejects modern -o options and fails the unit (the boot-race users hit).
+# snapraid is provided ONLY by this sysext, so its presence means the merge is done.
+ConditionPathExists=/usr/bin/snapraid
 
 [Service]
 Type=oneshot
