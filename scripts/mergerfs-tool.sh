@@ -26,7 +26,12 @@
 set -eu
 
 IMAGE="${MFT_IMAGE:-mergerfs-tools:local}"
-ENV_FILE=/DATA/AppData/mergerfs-snapraid/config/pool.env
+# Config/log location. install.sh records it in /etc/default/mergerfs-snapraid
+# (persistent /etc), so AppData may live on a second disk (forum #21).
+APP_DIR=/DATA/AppData/mergerfs-snapraid
+# shellcheck disable=SC1090
+[ -f "${MSR_DEFAULTS:-/etc/default/mergerfs-snapraid}" ] && . "${MSR_DEFAULTS:-/etc/default/mergerfs-snapraid}"
+ENV_FILE="${APP_DIR}/config/pool.env"
 SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Dockerfile lives in build/ in the repo; install.sh also drops a copy next to the
 # scripts. Resolve whichever exists (dev checkout vs installed /DATA layout).
@@ -116,6 +121,19 @@ for raw in $(echo "$BRANCHES" | tr ':' ' '); do
     MOUNTS="$MOUNTS -v $b:$b"
 done
 
+# Upstream mergerfs-tools moves files with `rsync -avlHAXWE --remove-source-files`, one
+# file at a time: hardlinked files are split into separate copies (open PR #153) and
+# every move resets the source directory's mtime (issue #157, PR #158) — both still
+# open at the pinned commit. Say so before anything is moved.
+case "$TOOL" in
+    balance|consolidate)
+        if [ "$MUTATES" = 1 ]; then
+            echo "WARNING: mergerfs.$TOOL splits hardlinked files into separate copies (more space,"
+            echo "         links lost) and resets the mtime of every source directory it moves from."
+            echo "         Hardlinks in the pool? Check first:  find $MOUNTPOINT -type f -links +1 | head"
+        fi ;;
+esac
+
 run_tool() {
     # shellcheck disable=SC2086  # $MOUNTS must word-split into separate -v flags
     docker run --rm -i $MOUNTS "$IMAGE" "mergerfs.$TOOL" "$@"
@@ -139,8 +157,10 @@ if [ "$MUTATES" = 1 ] && [ "$QUIESCE" = 1 ]; then
     # Raise it for this controlled, attended, quiesced sync — but keep the rest of the
     # guard (the fail-closed disk-missing / no-summary checks still protect us).
     echo "--- snapraid sync (re-align parity to the moved files) ---"
-    DELETE_THRESHOLD="${POST_MOVE_THRESHOLD:-1000000}" "${SELF_DIR}/snapraid-sync.sh" \
-        && echo "sync OK (log under /DATA/AppData/mergerfs-snapraid/logs)" \
+    # --allow-deletes, not DELETE_THRESHOLD=…: the script re-reads /etc/default, which
+    # would override an environment value set here.
+    "${SELF_DIR}/snapraid-sync.sh" --allow-deletes "${POST_MOVE_THRESHOLD:-1000000}" \
+        && echo "sync OK (log under ${APP_DIR}/logs)" \
         || echo "!!! snapraid-sync.sh reported a problem — check the latest log before trusting parity"
     echo "timers will be re-armed on exit."
 else

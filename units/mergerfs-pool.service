@@ -1,4 +1,5 @@
 [Unit]
+OnFailure=mergerfs-snapraid-alert@%n.service
 Description=mergerfs storage pool (ZimaOS)
 # Order strictly after the sysext overlay is merged.
 After=systemd-sysext.service local-fs.target
@@ -9,12 +10,16 @@ Wants=systemd-sysext.service
 # which rejects modern -o options and fails the unit (the boot-race users hit).
 # snapraid is provided ONLY by this sysext, so its presence means the merge is done.
 ConditionPathExists=/usr/bin/snapraid
+# The default MOUNTPOINT/APP_DIR live on /DATA, a late bind mount that is NOT behind
+# local-fs.target (ZimaOS KB §42). Scripts come from the sysext, so they never depend
+# on a late disk; start-pool.sh itself waits for APP_DIR's config (forum #21).
+RequiresMountsFor=/DATA
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/DATA/AppData/mergerfs-snapraid/scripts/start-pool.sh
-ExecStop=/DATA/AppData/mergerfs-snapraid/scripts/stop-pool.sh
+ExecStart=/usr/lib/mergerfs-snapraid/start-pool.sh
+ExecStop=/usr/lib/mergerfs-snapraid/stop-pool.sh
 
 [Install]
 WantedBy=multi-user.target

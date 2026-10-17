@@ -68,6 +68,17 @@ fi
 # 2) static snapraid -> usr/bin/snapraid
 install -D -m 0755 "${OUT}/snapraid-${ARCH}" "${TREE}/usr/bin/snapraid"
 
+# 2b) pool/sync scripts -> usr/lib/<name>/ (units exec them from here, so they never
+#     depend on the disk that holds the config — forum #21) + the mergerfs-tools
+#     Dockerfile that mergerfs-tool.sh builds its runner image from
+install -d -m 0755 "${TREE}/usr/lib/${NAME}"
+for s in "${HERE}/../scripts/"*.sh; do
+    install -m 0755 "$s" "${TREE}/usr/lib/${NAME}/"
+done
+install -m 0644 "${HERE}/Dockerfile.mergerfs-tools" "${TREE}/usr/lib/${NAME}/"
+# config examples: the scripts refuse to act on a config that is still byte-identical
+install -m 0644 "${HERE}/../config/"*.example "${TREE}/usr/lib/${NAME}/"
+
 # 3) extension-release (filename suffix MUST equal the installed image name)
 mkdir -p "${TREE}/usr/lib/extension-release.d"
 cat > "${TREE}/usr/lib/extension-release.d/extension-release.${NAME}" <<EOF

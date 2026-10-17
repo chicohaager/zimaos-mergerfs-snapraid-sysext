@@ -19,9 +19,14 @@
 set -eu
 
 NAME="${1:-}"
-BIN=/usr/bin/snapraid
-CONF=/DATA/AppData/mergerfs-snapraid/config/snapraid.conf
-LOGDIR=/DATA/AppData/mergerfs-snapraid/logs
+# Config/log location. install.sh records it in /etc/default/mergerfs-snapraid
+# (persistent /etc), so AppData may live on a second disk (forum #21).
+APP_DIR=/DATA/AppData/mergerfs-snapraid
+# shellcheck disable=SC1090
+[ -f "${MSR_DEFAULTS:-/etc/default/mergerfs-snapraid}" ] && . "${MSR_DEFAULTS:-/etc/default/mergerfs-snapraid}"
+BIN="${SNAPRAID_BIN:-/usr/bin/snapraid}"
+CONF="${APP_DIR}/config/snapraid.conf"
+LOGDIR="${APP_DIR}/logs"
 SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 [ "$(id -u)" = "0" ] || { echo "must run as root"; exit 1; }
@@ -77,6 +82,15 @@ esac
 echo "--- snapraid status ---"
 "$BIN" -c "$CONF" status || true
 
+# --- refuse while sync/scrub runs ------------------------------------------------
+# A running snapraid holds its lock file; fix would fail half-way into the recovery.
+for s in snapraid-sync.service snapraid-scrub.service; do
+    if [ "$(systemctl is-active "$s" 2>/dev/null)" = active ]; then
+        echo "REFUSE: $s is running — wait for it to finish (systemctl status $s), then re-run."
+        exit 1
+    fi
+done
+
 # --- confirm ---------------------------------------------------------------------
 echo
 echo "About to RECOVER data disk '$NAME' onto $DISK_PATH ($FSTYPE)."
@@ -86,16 +100,38 @@ read -r CONFIRM
 [ "$CONFIRM" = "$NAME" ] || { echo "aborted (got '$CONFIRM')"; exit 1; }
 
 # --- step 2: quiesce -------------------------------------------------------------
-# Install a restore trap FIRST: snapraid fix/check return non-zero on errors, and
-# under `set -e` that would abort BEFORE the pool/timers are restarted, leaving the
-# array offline and timers disabled — the worst state to hand back mid-recovery.
-# The EXIT trap restores services on every path (success and failure).
+# The marker is written BEFORE anything is stopped and removed only after a complete
+# fix -> check -> sync. While it exists, snapraid-sync.sh / snapraid-scrub.sh refuse:
+# a sync after a failed or interrupted fix would overwrite the parity a retry needs.
+# Stopping the timers alone is not enough — they are enabled and come back at boot.
+MARKER="${APP_DIR}/RECOVERY-IN-PROGRESS"
+{
+    echo "replace-disk.sh $NAME started $(date -Is)"
+    echo "log: $REPLACE_LOG"
+    echo "While this file exists, scheduled snapraid sync/scrub refuse to run."
+    echo "Re-run replace-disk.sh $NAME to retry; it removes this file on success."
+} > "$MARKER"
+
+# Restore trap: the pool always comes back (data stays reachable); the timers only
+# after success — on failure they stay stopped and the marker stays.
 restore_services() {
-    echo "--- restoring pool + timers ---"
-    [ -x "${SELF_DIR}/start-pool.sh" ] && "${SELF_DIR}/start-pool.sh" || true
-    systemctl start snapraid-sync.timer snapraid-scrub.timer 2>/dev/null || true
+    rc=$1
+    echo "--- restoring pool ---"
+    if [ -x "${SELF_DIR}/start-pool.sh" ]; then "${SELF_DIR}/start-pool.sh" || true; fi
+    if [ "$rc" = 0 ]; then
+        rm -f "$MARKER"
+        echo "--- re-arming snapraid timers ---"
+        systemctl start snapraid-sync.timer snapraid-scrub.timer || true
+    else
+        echo "!!! recovery FAILED (exit $rc). Sync/scrub stay BLOCKED by $MARKER"
+        echo "    so the parity needed for a retry is not overwritten. Next steps:"
+        echo "      1. read $REPLACE_LOG (snapraid fix/check output)"
+        echo "      2. fix the cause, then re-run: $0 $NAME"
+        echo "    Only if you deliberately give up on the missing files: rm $MARKER"
+        echo "    and systemctl start snapraid-sync.timer snapraid-scrub.timer"
+    fi
 }
-trap 'rc=$?; [ "$rc" = 0 ] || echo "!!! recovery FAILED (exit $rc) — restoring services so the array is not left offline"; restore_services; exit $rc' EXIT
+trap 'rc=$?; restore_services "$rc"; exit $rc' EXIT
 
 echo "--- stopping timers + pool ---"
 systemctl stop snapraid-sync.timer snapraid-scrub.timer 2>/dev/null || true
@@ -112,6 +148,6 @@ echo "--- snapraid check (verify the rebuild) ---"
 echo "--- snapraid sync (re-align parity) ---"
 "$BIN" -c "$CONF" sync
 
-# step 5 (restore pool + timers) is handled by the EXIT trap above.
+# step 5 (remove marker, restore pool + timers) is handled by the EXIT trap above.
 echo "=== replace-disk $NAME done $(date -Is) ==="
 echo "Verify: snapraid -c $CONF status   (expect no errors, 100% scrubbed over time)"
