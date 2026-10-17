@@ -65,9 +65,19 @@ jobs:
               /out/snapraid-${{ matrix.arch }} --version
             '
 
+      - name: Script + unit tests (stubbed, no root)
+        run: sh tests/run.sh
+
       - name: Assemble sysext .raw (${{ matrix.arch }})
         working-directory: build
         run: ./build-sysext.sh ${{ matrix.arch }}
+
+      - name: Check image (gzip, extension-release, scripts the units exec)
+        run: sh tests/check-raw.sh build/out/mergerfs-snapraid_${{ matrix.arch }}.raw
+
+      - name: install.sh / uninstall.sh as root in a throwaway container
+        if: matrix.arch == 'amd64'
+        run: sh tests/install-in-container.sh build/out/mergerfs-snapraid_amd64.raw
 
       - name: Smoke-test mergerfs binary from the tarball in ${{ matrix.platform }}
         run: |

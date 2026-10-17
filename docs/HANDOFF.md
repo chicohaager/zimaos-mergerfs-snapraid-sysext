@@ -12,6 +12,8 @@ build/out/SHA256SUMS                     ← checksum (verified before merge by 
 install.sh / uninstall.sh                ← root installer (uninstall preserves all data)
 units/                                   ← systemd units (installed to /etc, NOT in the .raw)
 scripts/                                 ← start/stop pool, snapraid sync/scrub, replace-disk
+                                           (packed into the .raw at /usr/lib/mergerfs-snapraid/)
+tests/run.sh, tests/check-raw.sh         ← host-free tests + image check (also run in CI)
 config/*.example                         ← pool.env + snapraid.conf templates
 build/                                    ← Dockerfile + scripts to rebuild from source
 docs/                                     ← architecture/recovery SVGs, TESTPLAN, TESTLOG

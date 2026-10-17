@@ -131,3 +131,44 @@ re-merged `/usr` without our module. **Preserved:** d1=12, d2=12 files, parity
 sync/scrub → file recovery → mass-delete guard → disk replacement → boot-race →
 uninstall all pass. Single-spindle (no real fault tolerance) and arm64 remain the
 only untested dimensions.
+
+---
+
+## 2026-10-17 — scripts-in-sysext, late AppData disk, guards (ZimaOS 1.8.0, kernel 6.18.9)
+
+Same rig and pool (`/DATA/StorageTest` over `/DATA/srtest/data{1,2}`). Each item was
+first shown failing (stub/container tests, `tests/`) and then run on the host.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | `install.sh` over the old layout | ✅ scripts in `/usr/lib/mergerfs-snapraid`, old copies → `scripts/.replaced-*`, units 0644, `After=… DATA.mount` |
+| 2 | AppData appears 20 s after the pool starts (forum #21) | ✅ `waiting for …pool.env`, mounted when it appeared |
+| 3 | AppData never appears (`CONFIG_WAIT=5`) | ✅ unit `failed` with the path in the message |
+| 4 | Timers right after install | ✅ active, next run listed (old installer: enabled but inactive until boot) |
+| 5 | Sync with the unedited example `snapraid.conf` | ✅ `REFUSE`, snapraid not run, no log written |
+| 6 | `branches-mount-timeout-fail` (throw-away pool) | ✅ without: rc=0, mounted despite unmounted branch · with: rc=1, nothing mounted |
+| 7 | Empty, unmounted branch / marked / unmarked same-fs / real mounts | ✅ refuse · mount · NOTE + rc=1 · mount |
+| 8 | Failure alert (`OnFailure=`) | ✅ `ALERT-snapraid-sync.service-*.txt` written within 1 s |
+| 9 | **Reboot** (`systemctl reboot`, boot 09:17:04) | ✅ see below |
+
+**Reboot journal (abridged, `journalctl -b -o short-precise`):**
+
+```
+09:17:10.564  (sd-merge) Merged extensions into '/usr'.
+09:17:10.682  Started Daily SnapRAID sync.            (timer active after boot)
+09:17:10.738  Starting mergerfs storage pool (ZimaOS)...      (via multi-user.target)
+09:17:10.762  start-pool.sh: waiting for branch /DATA/srtest/data1 to mount (up to 90s)...
+09:17:12.776  start-pool.sh: waiting for branch /DATA/srtest/data2 to mount (up to 90s)...
+09:17:14.135  mergerfs: All 2 branches are mounted
+09:17:14.137  start-pool.sh: mergerfs pool mounted at /DATA/StorageTest
+09:17:19.102  mergerfs-pool-watchdog.service: Deactivated successfully.
+```
+
+The branch-mount race is real on this box: the pool unit started 0.17 s after the
+merge, while both branch partitions were still unmounted; the branch wait held it
+~3 s. `systemctl --failed` empty, all 36 containers back.
+
+**Not covered:** a reboot with `APP_DIR` on a second, late-mounting disk (here AppData
+is on `/DATA`, readable at once) — covered only by item 2 (late appearance at runtime).
+**Note:** `config/snapraid.conf` on this rig is byte-identical to the example (mtime
+2026-06-05), so no parity sync is possible there until it is rewritten.
