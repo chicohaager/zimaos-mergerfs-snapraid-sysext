@@ -1,6 +1,6 @@
 # Tester guide — mergerfs-tools maintenance runner
 
-Hi @gelbuilding 👋 — thanks for offering to test this. This guide walks you through
+Hi George @gelbuilding 👋 — thanks for offering to test this. This guide walks you through
 validating the new **pool-maintenance tooling** (`pool-status.sh` + `mergerfs-tool.sh`)
 that wraps [trapexit/mergerfs-tools](https://github.com/trapexit/mergerfs-tools).
 It builds on the base module you already validated — credit for the underlying
