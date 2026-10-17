@@ -1,0 +1,15 @@
+# Keeps the SHA-pinned GitHub Actions current: Dependabot opens a PR that updates
+# the commit SHA and the "# vX.Y.Z" comment together. tests/check-versions.sh then
+# verifies the SHA really is that tag. mergerfs/SnapRAID pins are not covered here
+# (they are not package-manager dependencies) — check-versions.sh warns about those.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci"

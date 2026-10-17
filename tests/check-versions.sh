@@ -87,6 +87,10 @@ for spec in $(printf '%s\n' "$uses_lines" \
     [ -n "$up" ] && [ "$up" != "$tag" ] && warn "$act $up is released, pinned $tag"
 done
 echo "actions checked: $n_actions"
+# Dependabot keeps the SHA pins moving (it updates the SHA and the "# vX.Y.Z" comment);
+# without it the pins went up to four majors stale and only this log warned.
+grep -q 'package-ecosystem: *"\{0,1\}github-actions' .github/dependabot.yml 2>/dev/null \
+    || fail ".github/dependabot.yml does not update github-actions"
 [ "$n_actions" -gt 0 ] || fail "parsed 0 actions from $(printf '%s\n' "$uses_lines" | wc -l) uses: lines"
 
 if [ "$FAILS" = 0 ]; then echo "pins consistent"; else echo "$FAILS pin check(s) FAILED"; fi
