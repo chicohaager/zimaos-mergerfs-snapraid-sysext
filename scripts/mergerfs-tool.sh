@@ -144,7 +144,13 @@ if [ "$MUTATES" = 1 ] && [ "$QUIESCE" = 1 ]; then
         echo "--- re-arming snapraid timers ---"
         systemctl start snapraid-sync.timer snapraid-scrub.timer 2>/dev/null || true
     }
-    trap 'rc=$?; [ "$rc" = 0 ] || echo "!!! mergerfs.'"$TOOL"' exited $rc — re-arming timers; parity may be PARTIAL, inspect before trusting it"; restore_timers; exit $rc' EXIT
+    on_exit() {
+        rc=$?
+        [ "$rc" = 0 ] || echo "!!! mergerfs.$TOOL exited $rc — re-arming timers; parity may be PARTIAL, inspect before trusting it"
+        restore_timers
+        exit "$rc"
+    }
+    trap on_exit EXIT
 
     echo "--- stopping snapraid timers (no scheduled sync/scrub during the move) ---"
     systemctl stop snapraid-sync.timer snapraid-scrub.timer 2>/dev/null || true
