@@ -56,7 +56,7 @@ if [ -d "${TREE}/usr/local" ]; then
     mkdir -p "${TREE}/usr/bin" "${TREE}/usr/lib"
     [ -d "${TREE}/usr/local/bin" ] && cp -a "${TREE}/usr/local/bin/." "${TREE}/usr/bin/"
     [ -d "${TREE}/usr/local/lib" ] && cp -a "${TREE}/usr/local/lib/." "${TREE}/usr/lib/"
-    rm -rf "${TREE}/usr/local"
+    rm -rf "${TREE:?}/usr/local"
 fi
 # mount.mergerfs ships in top-level /sbin -> usr/sbin (/sbin -> /usr/sbin symlink)
 if [ -f "${TREE}/sbin/mount.mergerfs" ]; then
