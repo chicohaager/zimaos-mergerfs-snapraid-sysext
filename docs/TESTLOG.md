@@ -205,3 +205,33 @@ example since 2026-06-05 — rewritten for the rig (template kept as a backup).
 
 → For this module's use (ext4 branches, no snapshot option) 15.0 behaved like 14.5,
 in both directions of the content file. The pin stays 14.5 until a deliberate bump.
+
+---
+
+## 2026-10-17 (evening) — dedicated parity disk again; module with SnapRAID 15.0
+
+**Parity partition re-created.** `wipefs -n` on `sdc3` showed why `lsblk`/`blkid` saw no
+filesystem: two conflicting signatures — the May `ext4 SR-PARITY` (clean, last written
+2026-07-01) **and** two stale `zfs_member` labels "datastore" at the end of the
+partition (`zpool import`: no pools). That is gotcha G2 again: creating a new ext4 alone
+leaves such labels behind. Decided by the maintainer: `wipefs -a`, then a fresh ext4
+`SR-PARITY` without reserved blocks (behind a gate: by-id path, size, not mounted, no
+holders, no importable pool). After: only the ext4 signature, `blkid -p` unambiguous;
+the ZimaOS automounter did not mount it.
+
+**Mount:** own unit `DATA-srtest-parity.mount` in `/etc/systemd/system`, by UUID, at
+`/DATA/srtest/parity` (not the automounter's `/media/...`), ordered after `DATA.mount`.
+Parity lives in a **sub-directory** `sr/` that exists only on that filesystem, so an
+unmounted parity disk fails closed:
+
+| # | Check | Result |
+|---|---|---|
+| 1 | parity copied to the new disk | sha256 identical; `check` "Everything OK", `diff` "No differences" |
+| 2 | mount stopped → `systemctl start snapraid-sync.service` | `result=exit-code` — "Error accessing file '…/sr/snapraid.parity'", ABORT; ALERT file written; **no** parity file created on the NVMe underneath |
+| 3 | mount started again → sync | `success`, all 8 manifest files OK |
+
+**Module with SnapRAID 15.0** (CI build of `4a27370`, `VERSIONS` = 15.0) installed on the
+rig: install's version check passed, sync over the unit read the 14.5-written content
+and succeeded, `check` "Everything OK", `diff` "No differences", pool restarted active.
+
+**Not covered:** a reboot with the new parity mount unit.
