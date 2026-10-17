@@ -140,6 +140,21 @@ rm -rf /usr/lib/mergerfs-snapraid
 [ "$rc" != 0 ] && grep -q "predates the scripts-in-sysext" /out5 \
     && ok "install refuses an image without /usr/lib/mergerfs-snapraid" || { bad "old image accepted rc=$rc"; cat /out5; }
 
+# review finding 4: after the merge /usr/bin/mergerfs must be the version the image
+# ships — the ZimaOS base keeps a v1.5.4 there, so "it runs" proves nothing
+rm -rf /fakeimg /repo-fake; unsquashfs -q -d /fakeimg /img.raw >/dev/null
+printf '#!/bin/sh\necho "mergerfs v1.5.4"\n' > /fakeimg/usr/bin/mergerfs; chmod +x /fakeimg/usr/bin/mergerfs
+cp -a /repo /repo-fake && rm -f /repo-fake/build/out/mergerfs-snapraid_amd64.raw
+mksquashfs /fakeimg /repo-fake/build/out/mergerfs-snapraid_amd64.raw -comp gzip -all-root -noappend -quiet >/dev/null
+( cd /repo-fake/build/out && sha256sum mergerfs-snapraid_amd64.raw > SHA256SUMS )
+/repo-fake/install.sh > /out5v 2>&1; rc=$?
+[ "$rc" != 0 ] && grep -q 'v1.5.4' /out5v && grep -q 'expected' /out5v \
+    && ok "install refuses when the merged mergerfs is not the shipped version" \
+    || { bad "wrong merged mergerfs version accepted rc=$rc"; cat /out5v; }
+[ -f /usr/lib/mergerfs-snapraid/VERSIONS ] || unsquashfs -q -f -d / /img.raw usr >/dev/null
+grep -q '^MERGERFS_VERSION=[0-9]' /usr/lib/mergerfs-snapraid/VERSIONS 2>/dev/null \
+    && ok "image carries usr/lib/mergerfs-snapraid/VERSIONS" || bad "VERSIONS file missing in image"
+
 # --- 4) uninstall: symlinks gone, config + defaults kept ---
 /repo/install.sh > /dev/null 2>&1
 S=/media/SSD-Storage/AppData/mergerfs-snapraid
