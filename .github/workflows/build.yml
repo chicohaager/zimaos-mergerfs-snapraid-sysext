@@ -17,7 +17,8 @@ on:
   workflow_dispatch:
 
 # Least privilege: read-only by default; only the publish job is granted write.
-# (Recommend also pinning each `uses:` action to a full commit SHA.)
+# Every `uses:` is pinned to a full commit SHA (tag in the comment);
+# tests/check-versions.sh fails on an unpinned action and warns on a newer release.
 permissions:
   contents: read
 
@@ -37,12 +38,12 @@ jobs:
           - arch: arm64
             platform: linux/arm64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up QEMU (cross-arch)
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Install squashfs-tools
         run: sudo apt-get update && sudo apt-get install -y squashfs-tools
@@ -98,24 +99,27 @@ jobs:
             '
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sysext-${{ matrix.arch }}
           path: |
             build/out/mergerfs-snapraid_${{ matrix.arch }}.raw
             build/out/SHA256SUMS
 
-  publish:
+  # Runs on every event (read-only): assembles exactly the files a release would get
+  # and checks them, so artifact download/flatten breakage shows up in a PR, not only
+  # at the next release.
+  assemble:
     needs: build
-    if: github.event_name == 'release'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write        # only this job may attach release assets
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           path: dist
-      - name: Flatten + merge SHA256SUMS
+      - name: Install squashfs-tools
+        run: sudo apt-get update && sudo apt-get install -y squashfs-tools
+      - name: Flatten + merge SHA256SUMS, check every file
         run: |
           mkdir -p out
           find dist -name '*.raw' -exec cp {} out/ \;
@@ -123,8 +127,27 @@ jobs:
           find dist -name 'SHA256SUMS' -exec cat {} \; | sort -u > out/SHA256SUMS
           ls -l out
           cat out/SHA256SUMS
+          [ "$(wc -l < out/SHA256SUMS)" = 2 ] || { echo "expected 2 checksum lines"; exit 1; }
+          ( cd out && sha256sum -c SHA256SUMS )
+          for a in amd64 arm64; do sh tests/check-raw.sh "out/mergerfs-snapraid_${a}.raw"; done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-files
+          path: out/
+
+  publish:
+    needs: assemble
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # only this job may attach release assets
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-files
+          path: out
       - name: Attach to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           files: |
             out/mergerfs-snapraid_amd64.raw

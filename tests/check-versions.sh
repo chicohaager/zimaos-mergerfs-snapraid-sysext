@@ -60,5 +60,34 @@ fi
 [ -n "$mft_up" ] && [ "$mft_up" != "$mft" ] && warn "mergerfs-tools master is ${mft_up%"${mft_up#????????????}"}, pinned ${mft%"${mft#????????????}"} (check the upstream changes before bumping)"
 echo "upstream: mergerfs=${mf_up:-?} snapraid=${sr_up:-?} mergerfs-tools=${mft_up:-?}"
 
+# --- GitHub Actions: full-SHA pins with the tag as comment --------------------------
+# Format: `uses: owner/repo@<40-hex sha> # vX.Y.Z`. A moving tag (@v4) can change
+# under a released workflow; the comment keeps it readable and lets this check
+# confirm the SHA really is that tag and report newer releases.
+uses_lines="$(grep -E '^[[:space:]]*(- )?uses:' .github/workflows/*.yml)"
+[ -n "$uses_lines" ] || fail "no 'uses:' lines found in .github/workflows — parser out of date?"
+n_actions=0
+for spec in $(printf '%s\n' "$uses_lines" \
+        | sed -n 's/.*uses: *\([^ @]*\)@\([^ ]*\)\( *# *\(v[0-9][0-9.]*\)\)\{0,1\}.*/\1@\2@\4/p' | sort -u); do
+    n_actions=$((n_actions + 1))
+    act="${spec%%@*}"; rest="${spec#*@}"; ref="${rest%%@*}"; tag="${rest#*@}"
+    case "$ref" in
+        [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*) ;;
+        *) fail "$act@$ref is not pinned to a commit SHA"; continue ;;
+    esac
+    [ "${#ref}" = 40 ] || { fail "$act@$ref: SHA is not 40 characters"; continue; }
+    [ -n "$tag" ] || { fail "$act@$ref has no '# vX.Y.Z' tag comment"; continue; }
+    tag_sha="$(api "repos/$act/commits/$tag" 2>/dev/null | sed -n 's/^  "sha": "\([0-9a-f]*\)",$/\1/p' | head -1)"
+    if [ -z "$tag_sha" ]; then
+        warn "$act: tag $tag NOT checked against the pinned SHA (API unreachable)"
+    elif [ "$tag_sha" != "$ref" ]; then
+        fail "$act: pinned $ref but tag $tag is $tag_sha"
+    fi
+    up="$(api "repos/$act/releases/latest" 2>/dev/null | sed -n 's/^  "tag_name": "\(.*\)",$/\1/p')"
+    [ -n "$up" ] && [ "$up" != "$tag" ] && warn "$act $up is released, pinned $tag"
+done
+echo "actions checked: $n_actions"
+[ "$n_actions" -gt 0 ] || fail "parsed 0 actions from $(printf '%s\n' "$uses_lines" | wc -l) uses: lines"
+
 if [ "$FAILS" = 0 ]; then echo "pins consistent"; else echo "$FAILS pin check(s) FAILED"; fi
 [ "$FAILS" = 0 ]
