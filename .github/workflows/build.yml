@@ -106,6 +106,15 @@ jobs:
             build/out/mergerfs-snapraid_${{ matrix.arch }}.raw
             build/out/SHA256SUMS
 
+  # Config files nothing else reads in CI: a broken dependabot.yml makes Dependabot go
+  # silent instead of failing anything. Tool version pinned.
+  config-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: dependabot.yml against the Dependabot schema
+        run: pipx run check-jsonschema==0.38.2 --builtin-schema vendor.dependabot .github/dependabot.yml
+
   # Runs on every event (read-only): assembles exactly the files a release would get
   # and checks them, so artifact download/flatten breakage shows up in a PR, not only
   # at the next release.
