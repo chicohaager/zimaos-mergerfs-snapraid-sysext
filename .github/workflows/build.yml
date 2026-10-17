@@ -5,7 +5,7 @@ name: build-sysext
 # executable" for snapraid; --version must run), and publishes both .raw images
 # plus SHA256SUMS as release artifacts.
 #
-# Pins: mergerfs 2.42.0 (official static tarball), SnapRAID 14.5 (static build).
+# Pins: mergerfs 2.42.0 (official static tarball), SnapRAID 15.0 (static build).
 # Both confirmed present + latest via the GitHub release API on 2026-05-30.
 
 on:
@@ -24,7 +24,7 @@ permissions:
 
 env:
   MERGERFS_VERSION: "2.42.0"
-  SNAPRAID_VERSION: "14.5"
+  SNAPRAID_VERSION: "15.0"
 
 jobs:
   build:

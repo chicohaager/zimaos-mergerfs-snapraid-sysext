@@ -34,7 +34,7 @@ sudo /DATA/AppData/mergerfs-snapraid/scripts/snapraid-sync.sh   # first parity b
 
 ## Image contents (amd64)
 
-`/usr/bin/{mergerfs (v2.42.0), snapraid (v14.5, static), mergerfs-fusermount, fsck.mergerfs}`,
+`/usr/bin/{mergerfs (v2.42.0), snapraid (v15.0, static), mergerfs-fusermount, fsck.mergerfs}`,
 `/usr/lib/mergerfs/preload.so`, `/usr/sbin/mount.mergerfs`,
 `extension-release` = `ID=_any` + `ARCHITECTURE=x86-64`.
 `sha256(mergerfs-snapraid_amd64.raw)` is in `build/out/SHA256SUMS`.
