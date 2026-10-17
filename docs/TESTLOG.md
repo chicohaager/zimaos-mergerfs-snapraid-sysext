@@ -172,3 +172,36 @@ merge, while both branch partitions were still unmounted; the branch wait held i
 is on `/DATA`, readable at once) — covered only by item 2 (late appearance at runtime).
 **Note:** `config/snapraid.conf` on this rig is byte-identical to the example (mtime
 2026-06-05), so no parity sync is possible there until it is rewritten.
+
+---
+
+## 2026-10-17 (afternoon) — test rig re-armed; SnapRAID 15.0 compatibility
+
+**Rig change:** the old parity partition (now `sdc3`, 138 GiB) has **no filesystem**
+any more (`lsblk`: no FSTYPE/UUID/LABEL); it was left untouched. Parity moved to the
+NVMe system disk (`/DATA/srtest/parity/snapraid.parity`, a different device than the
+data partitions `sdc1`/`sdc2`). `config/snapraid.conf` had been byte-identical to the
+example since 2026-06-05 — rewritten for the rig (template kept as a backup).
+
+| # | Check (SnapRAID 14.5 from the module) | Result |
+|---|---|---|
+| 1 | 8 × 25 MiB written through the pool | spread 4/4 across `data1`/`data2` (`mfs`) |
+| 2 | `systemctl start snapraid-sync.service` | `result=success`, 8 added, guard `removed=0` |
+| 3 | `snapraid check` | "Everything OK", 210 MB read |
+| 4 | delete `file2.bin` on the branch → `snapraid -f … fix` | "0 unrecoverable"; all 8 sha256 OK; `diff`: "No differences" |
+
+**SnapRAID 15.0** (static build from `Dockerfile.snapraid`, source sha256
+`ceba44e1…ce19` = release digest), isolated: own parity + content files (NVMe +
+`/dev/shm`), same data branches.
+
+| # | Check | Result |
+|---|---|---|
+| a | `snapraid-sync.sh` with 15.0 | rc=0; the guard parses 15.0's diff summary (`8 added`, `removed=0`) |
+| b | `check` | "Everything OK" |
+| c | guard with `DELETE_THRESHOLD=0`, one file deleted | ABORT, names `--allow-deletes 1` |
+| d | `fix` with 15.0 | "0 unrecoverable", all 8 sha256 OK, next sync clean |
+| e | content format | 14.5 reads 15.0's content and 15.0 reads 14.5's (`diff` rc=0 both ways); both start with `SNAPCNT3` |
+| f | 14.5 array afterwards | `diff` "No differences", `check` "Everything OK" |
+
+→ For this module's use (ext4 branches, no snapshot option) 15.0 behaved like 14.5,
+in both directions of the content file. The pin stays 14.5 until a deliberate bump.
