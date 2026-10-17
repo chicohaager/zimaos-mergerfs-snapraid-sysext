@@ -65,6 +65,11 @@ jobs:
               /out/snapraid-${{ matrix.arch }} --version
             '
 
+      - name: Version pins (consistent = required; newer upstream = warning)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: sh tests/check-versions.sh
+
       - name: Script + unit tests (stubbed, no root)
         run: sh tests/run.sh
 

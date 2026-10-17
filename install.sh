@@ -104,10 +104,27 @@ systemd-sysext status | grep -q "$NAME" || echo "WARNING: $NAME not listed in sy
     echo "ERROR: ${LIBEXEC}/start-pool.sh missing — this .raw predates the scripts-in-sysext"
     echo "       layout; rebuild it (build/build-sysext.sh) or download a current release."
     exit 1; }
-/usr/bin/mergerfs --version >/dev/null 2>&1 && echo "mergerfs: $(/usr/bin/mergerfs --version 2>&1 | head -1)" \
-    || echo "WARNING: mergerfs not runnable after merge"
-/usr/bin/snapraid --version >/dev/null 2>&1 && echo "snapraid: $(/usr/bin/snapraid --version 2>&1 | head -1)" \
-    || echo "WARNING: snapraid not runnable after merge"
+# "It runs" proves nothing: the ZimaOS base ships its own mergerfs v1.5.4 at the same
+# path, so a failed merge still leaves a runnable /usr/bin/mergerfs. Compare the
+# versions against what this image ships (VERSIONS, written by build-sysext.sh).
+[ -f "${LIBEXEC}/VERSIONS" ] || { echo "ERROR: ${LIBEXEC}/VERSIONS missing — rebuild the .raw"; exit 1; }
+# shellcheck disable=SC1091
+. "${LIBEXEC}/VERSIONS"
+mf_v="$(/usr/bin/mergerfs --version 2>&1 | head -1)"
+sr_v="$(/usr/bin/snapraid --version 2>&1 | head -1)"
+echo "mergerfs: $mf_v"
+echo "snapraid: $sr_v"
+case "$mf_v" in
+    *"v${MERGERFS_VERSION} "* | *"v${MERGERFS_VERSION}") ;;
+    *) echo "ERROR: /usr/bin/mergerfs reports '$mf_v', expected v${MERGERFS_VERSION} —"
+       echo "       the extension did not merge (that is the ZimaOS base mergerfs). See README troubleshooting."
+       exit 1 ;;
+esac
+case "$sr_v" in
+    *"v${SNAPRAID_VERSION} "* | *"v${SNAPRAID_VERSION}") ;;
+    *) echo "ERROR: /usr/bin/snapraid reports '$sr_v', expected v${SNAPRAID_VERSION} — the extension did not merge."
+       exit 1 ;;
+esac
 
 # 5) app dir, config templates (never overwrite existing config)
 mkdir -p "$(dirname "$DEFAULTS")"
