@@ -87,6 +87,17 @@ for spec in $(printf '%s\n' "$uses_lines" \
     [ -n "$up" ] && [ "$up" != "$tag" ] && warn "$act $up is released, pinned $tag"
 done
 echo "actions checked: $n_actions"
+# actionlint is downloaded by version + SHA256 (Dependabot does not see it)
+al_pin="$(sed -n 's/^ *ACTIONLINT_VERSION: *"\(.*\)"$/\1/p' .github/workflows/build.yml)"
+if [ -z "$al_pin" ]; then
+    fail "ACTIONLINT_VERSION not found in build.yml"
+else
+    grep -q "ACTIONLINT_SHA256: *\"[0-9a-f]\{64\}\"" .github/workflows/build.yml \
+        || fail "ACTIONLINT_SHA256 missing or not 64 hex characters"
+    al_up="$(latest rhysd/actionlint)"
+    [ -n "$al_up" ] && [ "$al_up" != "$al_pin" ] && warn "actionlint $al_up is released, pinned $al_pin (update version AND SHA256)"
+    echo "actionlint: pinned=$al_pin upstream=${al_up:-?}"
+fi
 # Dependabot keeps the SHA pins moving (it updates the SHA and the "# vX.Y.Z" comment);
 # without it the pins went up to four majors stale and only this log warned.
 grep -q 'package-ecosystem: *"\{0,1\}github-actions' .github/dependabot.yml 2>/dev/null \
