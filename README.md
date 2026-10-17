@@ -42,8 +42,8 @@ Rows tagged **hw** were checked live on a ZimaCube Pro (v1.6.1, kernel
 | build tooling | `mksquashfs 4.6.1`, `docker 27.5.1`, `curl`, `unsquashfs` all present on host | sicher (hw) |
 | mergerfs static tarball | `mergerfs-2.42.0-static-linux_{amd64,arm64}.tar.gz` exists (+ armhf/i386/riscv64) | sicher |
 | mergerfs internal layout | tarball ships `usr/local/bin/{mergerfs,mergerfs-fusermount,fsck.mergerfs,mergerfs.collect-info}`, `usr/local/lib/mergerfs/preload.so`, `sbin/mount.mergerfs` → **we relocate to `/usr/bin`, `/usr/lib`, `/usr/sbin`** | sicher (hw) |
-| SnapRAID | source `snapraid-14.5.tar.gz` exists; pure userspace C, no kernel/daemon dep | sicher |
-| Version pins | mergerfs `2.42.0` is the latest release; snapraid is pinned to `14.5` although **v15.0** was published 2026-10-16 (its HISTORY still says "Work in Progress") — bump after a host test (GitHub release API checked 2026-10-17) | sicher |
+| SnapRAID | source `snapraid-15.0.tar.gz` (sha256 `ceba44e1…ce19` = release digest); pure userspace C, no kernel/daemon dep | sicher |
+| Version pins | mergerfs `2.42.0` and SnapRAID `15.0` (2026-10-16; moved from 14.5 on 2026-10-17 after a host test: guard parsing, check, fix, and content files readable by 14.5 and 15.0 in both directions — `docs/TESTLOG.md`) | sicher |
 | systemd ARCH token | `x86-64` (amd64), `arm64` (arm64) — used in `extension-release` | sicher |
 | ZimaOS | `ID=zimaos`, `VERSION_ID=1.6.1`, ZimaCube amd64 | sicher (hw) |
 | Data-disk mounts | ZimaOS automounts at `/media/sdX` (+ bind `/DATA/.media/`); current test disk `/media/sda` = `/dev/sdb` **exFAT** (1 disk only) | sicher (hw) |
