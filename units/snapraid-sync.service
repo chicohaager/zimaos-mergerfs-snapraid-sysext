@@ -1,11 +1,14 @@
 [Unit]
+OnFailure=mergerfs-snapraid-alert@%n.service
 Description=SnapRAID sync (ZimaOS)
 After=mergerfs-pool.service
 ConditionPathExists=/usr/bin/snapraid
-ConditionPathExists=/DATA/AppData/mergerfs-snapraid/config/snapraid.conf
+# No condition on snapraid.conf: APP_DIR is configurable and may be on a late disk;
+# the script fails loudly (instead of skipping silently) when the config is absent.
+RequiresMountsFor=/DATA
 
 [Service]
 Type=oneshot
 Nice=10
 IOSchedulingClass=idle
-ExecStart=/DATA/AppData/mergerfs-snapraid/scripts/snapraid-sync.sh
+ExecStart=/usr/lib/mergerfs-snapraid/snapraid-sync.sh

@@ -1,0 +1,7 @@
+[Unit]
+Description=mergerfs-snapraid failure alert for %i
+ConditionPathExists=/usr/lib/mergerfs-snapraid/alert.sh
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/mergerfs-snapraid/alert.sh %i

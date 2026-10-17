@@ -59,6 +59,9 @@ build/build-mergerfs-tools.sh    pre-build that image (auto-built on first use t
 units/                      systemd units (live in /etc, NOT in the sysext)
 scripts/                    start/stop pool, snapraid sync/scrub, replace-disk,
                             pool-status (native overview), mergerfs-tool (maintenance)
+                            — shipped INSIDE the sysext at /usr/lib/mergerfs-snapraid/
+tests/run.sh                host-free script/unit tests (stubs, no root): sh tests/run.sh
+tests/check-raw.sh          image check: gzip, extension-release, scripts present + identical
 config/*.example            pool.env + snapraid.conf templates
 install.sh / uninstall.sh   root installer (preserves data on uninstall)
 docs/                       architecture.svg + recovery.svg (theme-neutral)
@@ -84,13 +87,53 @@ cd build
 ## Install
 
 ```sh
-sudo ./install.sh
-# then edit:
+sudo ./install.sh                       # config + logs in /DATA/AppData/mergerfs-snapraid
+# or keep them elsewhere, e.g. on a SATA SSD that ZimaOS mounts late:
+#   sudo ./install.sh --app-dir /media/SSD-Storage/AppData/mergerfs-snapraid
+# then edit (paths below assume the default app dir):
 #   /DATA/AppData/mergerfs-snapraid/config/pool.env       (BRANCHES = data disks, NOT parity)
 #   /DATA/AppData/mergerfs-snapraid/config/snapraid.conf  (parity/content/data = underlying disks)
 sudo systemctl start mergerfs-pool.service
 sudo /DATA/AppData/mergerfs-snapraid/scripts/snapraid-sync.sh   # first parity build
 ```
+
+The sync/scrub timers are **active right after install** (no reboot needed; older
+installers only *enabled* them, so they stayed inactive until the next boot). Until you
+edit them, the pool, sync and scrub **refuse** to act on a config that is still
+byte-identical to the shipped example (`REFUSE: … is the unedited example`) — the
+examples name `/media/sda` + `/media/sdb`, which are real disks on many boxes.
+
+**Upgrading an install whose units you edited by hand** (e.g. AppData moved to an SSD
+and the path written into `mergerfs-pool.service`): just re-run `sudo ./install.sh`.
+Without `/etc/default/mergerfs-snapraid` it takes `APP_DIR` from the `…/scripts/*.sh`
+and `…/config/snapraid.conf` paths in your installed units, keeps your config there,
+and saves the old unit files to `$APP_DIR/units-backup-<time>/`. It refuses (and asks
+for `--app-dir`) if the units name different paths, or if that path is not present
+right now — mount the disk first, otherwise `config/` would be created on the bare
+mountpoint directory.
+
+### Settings — `/etc/default/mergerfs-snapraid`
+
+`install.sh` only rewrites the `APP_DIR=` line; every other line there is yours and
+survives re-installs.
+
+| Setting | Default | Effect |
+|---|---|---|
+| `APP_DIR` | `/DATA/AppData/mergerfs-snapraid` | where `config/` and `logs/` live (set via `install.sh --app-dir`) |
+| `CONFIG_WAIT` | `300` | boot: seconds the pool waits for `$APP_DIR/config/pool.env` |
+| `DELETE_THRESHOLD` | `200` | sync aborts when `snapraid diff` reports more removed files |
+| `NOTIFY_CMD` | — | shell command run when the pool, sync or scrub fails; gets `$ALERT_UNIT`, `$ALERT_FILE` |
+
+**Intended mass deletion** (forum #20: 8000 files cleaned up, every nightly sync then
+aborted): the sync log and the journal print the exact one-time release, e.g.
+`sudo $APP_DIR/scripts/snapraid-sync.sh --allow-deletes 8000` — it syncs only if the
+real count is ≤ that number, for that one run. Check the `remove` lines in the log first.
+
+**Failure alerts:** pool, sync and scrub carry `OnFailure=mergerfs-snapraid-alert@%n.service`.
+Every failure writes `$APP_DIR/logs/ALERT-<unit>-<time>.txt` (visible in the ZimaOS
+Files app) with the unit's last journal lines, then runs `NOTIFY_CMD` if set, e.g.
+`NOTIFY_CMD='curl -s -d "$ALERT_UNIT failed" https://ntfy.sh/<your-topic>'`.
+*Verified on .143 (2026-10-17):* a refused sync produced the ALERT file within 1 s.
 
 ## Design notes / decisions
 
@@ -102,7 +145,7 @@ sudo /DATA/AppData/mergerfs-snapraid/scripts/snapraid-sync.sh   # first parity b
 - **Units live in `/etc/systemd/system/`, not in the sysext.** This is the lesson
   from the tailscale/cron modules: a unit *inside* the sysext isn't visible when
   `multi-user.target` resolves `WantedBy=` before `systemd-sysext.service` merges.
-  Here only the *binaries* are in the sysext; the pool service is ordered
+  Here only binaries + scripts are in the sysext (no units); the pool service is ordered
   `After=systemd-sysext.service` and a 60s watchdog timer is a fallback. **sicher** (reasoning)
 - **`extension-release` uses `ID=_any` + `ARCHITECTURE`** so the image survives
   ZimaOS minor updates without re-install, while refusing a wrong-arch merge.
@@ -127,9 +170,32 @@ sudo /DATA/AppData/mergerfs-snapraid/scripts/snapraid-sync.sh   # first parity b
     2.42 does *not* fail on an unmounted/missing branch (verified: exit 0) — it mounts
     an **empty** pool and shadows the disk when it appears later ("not recognized").
     **Fix:** `start-pool.sh` waits (default `BRANCH_WAIT=90`s) for every branch to be a
-    mountpoint / non-empty and refuses a truly-absent branch; `branches-mount-timeout`
-    stays as a second layer. *Verified on .143:* wait-then-mount + refuse-missing both
-    pass. **sicher** (component-tested); full cold-boot reboot test still pending.
+    mountpoint, non-empty, or marked with `.mergerfs.branch`, and **refuses** (exit 1)
+    both an absent branch and one that is still an empty, unmounted folder after the
+    wait (before 2026-10-17 it said "proceeding anyway" and mounted over it;
+    `ALLOW_EMPTY_BRANCH=1` in `pool.env` restores that). Second layer:
+    `branches-mount-timeout=30,branches-mount-timeout-fail=true` — mergerfs itself
+    exits instead of mounting. *Verified on .143 (ZimaOS 1.8.0, 2026-10-17):* without
+    `-fail` an unmounted branch still mounted (rc=0, "Continuing to mount mergerfs
+    despite…"); with it rc=1, nothing mounted. mergerfs counts a branch as mounted
+    when it is on a different filesystem than the pool mountpoint (`st_dev`, see
+    `src/fs_wait_for_mount.cpp`) — so a branch that is a **plain folder** on the same
+    filesystem (e.g. `/DATA/foo`) needs `touch /DATA/foo/.mergerfs.branch`, and
+    `start-pool.sh` prints a NOTE naming such branches. Full cold-boot test pending.
+- **Scripts live in the sysext, config wherever you want it (forum #21).** The units
+  exec `/usr/lib/mergerfs-snapraid/*.sh` from the read-only image, never from AppData.
+  Before, they exec'd `/DATA/AppData/.../scripts/start-pool.sh`; with AppData moved to
+  a SATA SSD that mounts a few seconds after the sysext merge, the pool failed with
+  `203/EXEC` ("Unable to locate executable") and the watchdog's single retry failed
+  too. The config location is recorded once in `/etc/default/mergerfs-snapraid`
+  (`APP_DIR=...`, persistent `/etc`); `start-pool.sh` waits up to `CONFIG_WAIT`
+  (default 300 s, settable in that file) for `$APP_DIR/config/pool.env`, and
+  sync/scrub refuse (exit 1) rather than create `logs/` on an unmounted disk's
+  mountpoint. `$APP_DIR/scripts/` keeps symlinks, so the documented commands still
+  work; hand-edited copies from older installs are moved to `scripts/.replaced-<date>/`.
+  The units also carry `RequiresMountsFor=/DATA` (ZimaOS KB: `/DATA` is a late bind
+  mount not ordered behind `local-fs.target`). Stub-tested + image-checked;
+  **cold boot with AppData on a second disk not yet hardware-tested.**
 - **SnapRAID disk identity:** SnapRAID keys disks by path; ZimaOS assigns
   `/media/sdX` by detection order, so a replacement can land on a different
   letter. Prefer by-LABEL/UUID mounts; `replace-disk.sh` reconciles the path and
@@ -161,6 +227,15 @@ sudo /DATA/AppData/mergerfs-snapraid/scripts/replace-disk.sh d1
 
 It runs `snapraid status`, stops the timers + pool, prompts for confirmation,
 then `fix -d d1` → `check` → `sync`, and finally restarts the pool + timers.
+
+It refuses to start while a sync/scrub is running, and writes
+`$APP_DIR/RECOVERY-IN-PROGRESS` before it stops anything. While that file exists,
+scheduled sync and scrub **refuse** (and trigger the failure alert) — also after a
+reboot, when the enabled timers come back. Only a complete `fix → check → sync`
+removes it and re-arms the timers. **If the recovery fails**, the pool is restarted
+but the timers stay stopped and the marker stays, so no nightly sync can overwrite
+the parity a retry needs; re-run `replace-disk.sh d1` after fixing the cause. (Before
+2026-10-17 a failed recovery re-armed the timers.)
 Full flow: `docs/recovery.svg`.
 
 ![recovery](docs/recovery.svg)
@@ -197,6 +272,16 @@ sudo "$T" ctl -m /DATA/Storage list values   # runtime branch/option introspecti
 > and refuses to run without `--quiesce` (or `--yes` if you'll sync manually). The
 > print-only tools (`consolidate`/`dedup`/`dup` without `-e`) are safe to run anytime.
 
+> **⚠ Hardlinks + directory mtimes.** Upstream moves files with
+> `rsync -avlHAXWE --remove-source-files`, one file at a time. At the pinned commit
+> two upstream issues are still open: hardlinked files are split into separate copies
+> (PR [#153](https://github.com/trapexit/mergerfs-tools/pull/153)) and each move resets
+> the source directory's mtime (issue [#157](https://github.com/trapexit/mergerfs-tools/issues/157)).
+> `mergerfs-tool.sh` prints this warning before a data-moving `balance`/`consolidate`;
+> check `find <pool> -type f -links +1` first. Upstream removed `mergerfs.fsck` after
+> the pin (commit `940f2d0`, 2026-10-01) — when bumping `MFT_SHA`, drop it from the
+> Dockerfile and use the native `fsck.mergerfs` shipped in this sysext.
+
 > **Status: hardware-validated on amd64 (2026-06-04, ZimaCube Pro, v1.6.1).** Full
 > `--quiesce balance` flow tested end-to-end on the single-spindle SR test rig: 14 GB
 > unbalanced (19%/1%) → balance moved 13 files → 11%/9%, post-balance `snapraid sync`
@@ -214,8 +299,17 @@ sudo "$T" ctl -m /DATA/Storage list values   # runtime branch/option introspecti
   the correct arch by `uname -m`).
 - **Pool not mounted after reboot:** check `systemctl status mergerfs-pool.service`
   and that the watchdog timer fired (`systemctl status mergerfs-pool-watchdog.timer`).
-  If branches were empty at mount time, confirm the ZimaOS automounts came up and
-  that `branches-mount-timeout` is set in `pool.env`.
+  "branch … is empty and not a mountpoint … refusing" means a disk was not mounted in
+  time: raise `BRANCH_WAIT`, or mark an intentionally empty folder with
+  `.mergerfs.branch`. "N of M branches were not mounted … Exiting" comes from
+  `branches-mount-timeout-fail` — same causes.
+- **sync/scrub unit `failed`:** the scripts now exit with SnapRAID's own status (before
+  2026-10-17 a failed sync still exited 0). Read the newest log in `$APP_DIR/logs/`.
+- **`mergerfs-pool.service` fails with `203/EXEC` / "Unable to locate executable":**
+  the units still point at the old AppData script paths — re-run `sudo ./install.sh`
+  with a current `.raw` (install refuses an image without `/usr/lib/mergerfs-snapraid/`).
+- **Pool waits / "…pool.env not found after 300s":** the disk holding `APP_DIR` (see
+  `/etc/default/mergerfs-snapraid`) did not mount in time; raise `CONFIG_WAIT=` there.
 - **`allow_other` rejected:** only relevant for non-root access; needs
   `user_allow_other` in `/etc/fuse.conf`. Running via the root systemd unit, it's fine.
 
