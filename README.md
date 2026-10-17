@@ -305,6 +305,12 @@ sudo "$T" ctl -m /DATA/Storage list values   # runtime branch/option introspecti
   `branches-mount-timeout-fail` — same causes.
 - **sync/scrub unit `failed`:** the scripts now exit with SnapRAID's own status (before
   2026-10-17 a failed sync still exited 0). Read the newest log in `$APP_DIR/logs/`.
+- **`install.sh`: "/usr/bin/mergerfs reports 'mergerfs v1.5.4', expected v2.42.0":** the
+  extension did not merge, and the ZimaOS base mergerfs answered instead. Check
+  `systemd-sysext status` and `journalctl -u systemd-sysext` (gzip squashfs, file name
+  `mergerfs-snapraid.raw`). The image records its versions in
+  `/usr/lib/mergerfs-snapraid/VERSIONS`; `tests/check-versions.sh` (CI) keeps every pin
+  in the repo consistent and warns when upstream has a newer release.
 - **`mergerfs-pool.service` fails with `203/EXEC` / "Unable to locate executable":**
   the units still point at the old AppData script paths — re-run `sudo ./install.sh`
   with a current `.raw` (install refuses an image without `/usr/lib/mergerfs-snapraid/`).

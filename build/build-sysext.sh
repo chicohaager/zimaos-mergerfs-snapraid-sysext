@@ -79,6 +79,15 @@ install -m 0644 "${HERE}/Dockerfile.mergerfs-tools" "${TREE}/usr/lib/${NAME}/"
 # config examples: the scripts refuse to act on a config that is still byte-identical
 install -m 0644 "${HERE}/../config/"*.example "${TREE}/usr/lib/${NAME}/"
 
+# 2c) VERSIONS — install.sh compares the merged binaries against it (a failed merge
+#     leaves the ZimaOS base mergerfs v1.5.4 at /usr/bin/mergerfs). The SnapRAID
+#     version is read from the binary itself (works for any arch, no exec needed).
+SNAPRAID_BUILT="$(grep -a -o -m1 'SnapRAID CLI v[0-9][0-9.]*' "${OUT}/snapraid-${ARCH}" | sed 's/.* v//')"
+[ -n "$SNAPRAID_BUILT" ] || { echo "cannot read the SnapRAID version from ${OUT}/snapraid-${ARCH}" >&2; exit 1; }
+printf 'MERGERFS_VERSION=%s\nSNAPRAID_VERSION=%s\n' "$MERGERFS_VERSION" "$SNAPRAID_BUILT" \
+    > "${TREE}/usr/lib/${NAME}/VERSIONS"
+chmod 0644 "${TREE}/usr/lib/${NAME}/VERSIONS"
+
 # 3) extension-release (filename suffix MUST equal the installed image name)
 mkdir -p "${TREE}/usr/lib/extension-release.d"
 cat > "${TREE}/usr/lib/extension-release.d/extension-release.${NAME}" <<EOF
