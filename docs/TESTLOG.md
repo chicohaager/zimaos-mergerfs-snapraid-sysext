@@ -280,3 +280,36 @@ Sunday scrub (05:00) ran 0.2 s and logged "Nothing to scrub" — the default pla
 
 **Not covered:** a reboot with `APP_DIR` on a second, late-mounting disk; arm64 on real
 hardware.
+
+## 2026-10-18 — v1.2.0 on a ZimaBoard 2 (second machine, RAM-backed stand-in disks)
+
+**Machine:** ZimaBoard 2 (DMI `product_name` "ZimaBoard2", Intel N150, 15.7 GB RAM), ZimaOS v1.8.0,
+kernel 6.18.9, x86-64, `/dev/fuse` present. Its two SATA SSDs carry the box's own btrfs RAID and were not
+touched. No reboot was done on this machine, and arm64 is still unverified.
+
+**Before:** `mergerfs-snapraid.raw` (sha256 `0a4bb551…`, SnapRAID 14.5), installed 2026-10-02 under
+ZimaOS 1.8.0-beta1, was still merged under 1.8.0 final (`systemd-sysext status`, merged since the 2026-10-16
+boot) — a second data point for "survives ZimaOS updates", next to 1.6.1 → 1.7.1. No units, no config.
+
+**Install exactly as the README's "From a release" block:** tag archive + `mergerfs-snapraid_amd64.raw` +
+`SHA256SUMS`, then `sudo ./install.sh`: `mergerfs-snapraid_amd64.raw: OK`, "checksum OK", SnapRAID 15.0,
+mergerfs 2.42.0, image sha256 `d225dbe4…` = the release's `SHA256SUMS`.
+
+**Stand-in disks:** one 128 MiB tmpfs each for `d1`, `d2` and parity. Two plain folders or bind mounts of one
+filesystem do not work: SnapRAID refuses ("Disks … are on the same device", hint `--force-device`); with
+`replace-disk.sh` this ended in a failed recovery that left sync/scrub blocked and `RECOVERY-IN-PROGRESS` in
+place, as documented. The example `minfreespace=20G` must be lowered for disks this small (otherwise "No space
+left on device"); the run used `16M`.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | start with the unedited example config | pool service `failed` ("REFUSE: …/pool.env is the unedited example"), `snapraid-sync.sh` rc=1 ("REFUSE: …/snapraid.conf is the unedited example") |
+| 2 | pool over `d1`+`d2` | `fuse.mergerfs`, 8 files from both disks in one folder |
+| 3 | first sync, `check` | rc=0 "Everything OK"; `check`: "Everything OK" |
+| 4 | guard with `DELETE_THRESHOLD=0`, one file deleted | `ABORT: 1 files removed > limit 0`, prints `sudo …/snapraid-sync.sh --allow-deletes 1`; that one-time release syncs (rc=0) |
+| 5 | `d1` replaced by a blank disk, `replace-disk.sh d1` | 48 recovered, 0 unrecoverable; all 8 files sha256-identical; timers active, marker removed, pool remounted |
+| 6 | afterwards | 0 failed units; the box's 4 containers unchanged |
+
+**Cleanup:** `uninstall.sh`, the original image put back (sha256 `0a4bb551…` again), test directories removed.
+
+**Not covered:** a reboot on this machine, real separate disks, arm64 on real hardware.
