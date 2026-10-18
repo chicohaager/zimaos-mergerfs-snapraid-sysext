@@ -17,7 +17,7 @@ the bottom and report back on the PR or the forum thread.
   physically move or delete files between disks. Don't point this at data you can't lose
   until you trust it.
 - **It needs root + Docker.** ZimaOS has no native Python, so the tools run in a small
-  one-shot container (`python:3-alpine` + rsync, ~50 MB) that is built automatically on
+  one-shot container (`python:3.15-alpine3.24` pinned by digest + rsync, ~50 MB) that is built automatically on
   first use. The storage layer itself stays native — Docker is only for this maintenance step.
 - **`balance` needs ≥ 2 data branches** to have somewhere to move files to.
 - **`balance` and SnapRAID:** a balance moves files between disks, which SnapRAID sees as

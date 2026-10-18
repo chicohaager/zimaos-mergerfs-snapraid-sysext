@@ -8,7 +8,10 @@
 #
 # Build needs no local context (everything is fetched by ADD):
 #   docker build -t mergerfs-tools:local - < build/Dockerfile.mergerfs-tools
-FROM python:3-alpine
+# Pinned by digest: sha256:2699b90f… is what `python:3.15-alpine3.24` resolved to on
+# Docker Hub on 2026-10-18 (Python 3.15.0, Alpine 3.24.2). The tag names the minor
+# version so check-base-images can look up its end of life. Bump tag and digest together.
+FROM python:3.15-alpine3.24@sha256:2699b90f4d562a22e2dd076c82f964032f64814204bff36d271a54ba4cc2c7e2
 
 # rsync: required by balance/consolidate/dup. coreutils/findutils: a couple of tools
 # assume GNU semantics over busybox (du/find flags).
