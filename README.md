@@ -327,6 +327,10 @@ sudo "$T" ctl -m /DATA/Storage list values   # runtime branch/option introspecti
   time: raise `BRANCH_WAIT`, or mark an intentionally empty folder with
   `.mergerfs.branch`. "N of M branches were not mounted … Exiting" comes from
   `branches-mount-timeout-fail` — same causes.
+- **New files fail with "No space left on device" although the disks have room:** the example `OPTS` carry
+  `minfreespace=20G`, i.e. mergerfs keeps 20 GB free on every branch and refuses to place a file on one that has
+  less. On disks (or test volumes) smaller than that, lower the value in `pool.env` (for example `minfreespace=1G`)
+  and restart the pool. *Seen on a ZimaBoard 2 with 128 MiB stand-in disks, 2026-10-18; the run used `16M`.*
 - **sync/scrub unit `failed`:** the scripts now exit with SnapRAID's own status (before
   2026-10-17 a failed sync still exited 0). Read the newest log in `$APP_DIR/logs/`.
 - **`install.sh`: "/usr/bin/mergerfs reports 'mergerfs v1.5.4', expected v2.42.0":** the
