@@ -234,4 +234,49 @@ unmounted parity disk fails closed:
 rig: install's version check passed, sync over the unit read the 14.5-written content
 and succeeded, `check` "Everything OK", `diff` "No differences", pool restarted active.
 
-**Not covered:** a reboot with the new parity mount unit.
+**Not covered:** a reboot with the new parity mount unit — done on 2026-10-18, see below.
+
+---
+
+## 2026-10-18 — v1.2.0 from the release assets; reboot with the parity mount unit
+
+**Install:** source tarball of tag `v1.2.0` plus the release's `mergerfs-snapraid_amd64.raw`
+and `SHA256SUMS` downloaded on the rig, `sudo ./install.sh` over the CI build of the
+previous evening.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | `install.sh` checksum | `mergerfs-snapraid_amd64.raw: OK` |
+| 2 | merged versions vs. `VERSIONS` | mergerfs v2.42.0, SnapRAID v15.0 — match |
+| 3 | installed image | sha256 `d225dbe4…` = the amd64 line of the release's `SHA256SUMS` |
+| 4 | existing `pool.env` / recorded AppData path | kept ("not overwritten") |
+| 5 | after install | pool, parity mount, watchdog/sync/scrub timers active; 0 failed units; 36 containers |
+
+**Reboot** (`systemctl reboot`; `boot_id` changed, back over ssh on the 3rd 10 s poll;
+`journalctl -b -o short-precise`, abridged — the unit is `DATA-srtest-parity.mount`):
+
+```
+11:27:36.137  Mounted SnapRAID test-rig parity disk (SR-PARITY on the Hitachi test disk).
+11:27:36.867  (sd-merge) Merged extensions into '/usr'.
+11:27:36.977  Started Daily SnapRAID sync.
+11:27:37.046  Starting mergerfs storage pool (ZimaOS)...
+11:27:37.063  start-pool.sh: waiting for branch .../data1 to mount (up to 90s)...
+11:27:39.076  start-pool.sh: waiting for branch .../data2 to mount (up to 90s)...
+11:27:40.440  mergerfs: All 2 branches are mounted
+11:27:40.441  start-pool.sh: mergerfs pool mounted
+```
+
+| # | Check after the reboot | Result |
+|---|---|---|
+| 6 | parity mount before the pool | mounted 11:27:36, pool active 11:27:40; `sr/snapraid.parity` present |
+| 7 | image sha256 | unchanged, `d225dbe4…` |
+| 8 | `systemctl --failed` | 0 units; timers active; 36 containers back |
+| 9 | `systemctl start snapraid-sync.service` | `Result=success`, `ExecMainStatus=0`; `snapraid status`: "No error detected" |
+
+**Scheduled runs seen on the same day:** the nightly sync (04:00) ended `success`. The
+Sunday scrub (05:00) ran 0.2 s and logged "Nothing to scrub" — the default plan
+(`-p 12 -o 10`) only takes blocks older than 10 days, and the array was re-synced on
+2026-10-17, so `snapraid status` says "100% of the array is not scrubbed".
+
+**Not covered:** a reboot with `APP_DIR` on a second, late-mounting disk; arm64 on real
+hardware.
