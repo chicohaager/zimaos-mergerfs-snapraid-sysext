@@ -17,6 +17,10 @@ RUN apk add --no-cache rsync findutils coreutils
 # Pin to a specific upstream commit. trapexit/mergerfs-tools publishes NO tags or
 # releases, so the commit hash IS the integrity anchor (content-addressed, immutable).
 # Bump deliberately; never track a moving branch.
+# Not bumped to master 940f2d0 (2026-10-02): `gh api repos/trapexit/mergerfs-tools/compare/
+# <pin>...940f2d0` lists one commit that only removes src/mergerfs.fsck (plus README/Makefile);
+# the raw URL for it answers 404 there (200 at the pin), so the ADD below would fail the
+# build. The other six tools are unchanged between the two commits.
 ARG MFT_SHA=80d6c9511da554009415d67e7c0ead1256c1fc41
 ARG RAW=https://raw.githubusercontent.com/trapexit/mergerfs-tools/${MFT_SHA}/src
 ADD ${RAW}/mergerfs.balance     /usr/local/bin/mergerfs.balance
