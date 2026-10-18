@@ -344,6 +344,11 @@ sudo "$T" ctl -m /DATA/Storage list values   # runtime branch/option introspecti
   with a current `.raw` (install refuses an image without `/usr/lib/mergerfs-snapraid/`).
 - **Pool waits / "…pool.env not found after 300s":** the disk holding `APP_DIR` (see
   `/etc/default/mergerfs-snapraid`) did not mount in time; raise `CONFIG_WAIT=` there.
+  If the message names the *default* `/DATA/AppData/mergerfs-snapraid` although you installed with
+  `--app-dir`, `/etc/default/mergerfs-snapraid` is missing (the scripts then fall back to the default path):
+  re-run `sudo ./install.sh --app-dir <your dir>`; it keeps your config. That file sits in the persistent
+  `/etc` overlay next to the units and survived a reboot and several `systemd-sysext refresh` runs
+  (measured 2026-10-18); whether it survives a ZimaOS A/B update is not measured.
 - **`allow_other` rejected:** only relevant for non-root access; needs
   `user_allow_other` in `/etc/fuse.conf`. Running via the root systemd unit, it's fine.
 
