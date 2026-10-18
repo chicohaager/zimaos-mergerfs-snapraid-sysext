@@ -11,6 +11,9 @@ minor ZimaOS updates.
 > → **cold-boot boot-race (pool auto-mounted, timers armed)** → uninstall (data
 > preserved). Full log: [docs/TESTLOG.md](docs/TESTLOG.md).
 >
+> Re-run on a **ZimaBoard 2** (ZimaOS 1.8.0) with v1.2.0 on 2026-10-18, using RAM-backed stand-in disks:
+> install from the release, pool, sync, check, delete guard and `replace-disk.sh` all passed (no reboot there).
+>
 > **Caveats:** the array test was **single-spindle** (one disk partitioned into
 > data+parity) — it validates every software path but not real multi-disk fault
 > tolerance. **arm64 is built but not hardware-tested.** Use ext4/xfs on separate
