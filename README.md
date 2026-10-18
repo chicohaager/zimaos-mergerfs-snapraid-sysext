@@ -86,6 +86,27 @@ cd build
 
 ## Install
 
+### From a release (no build needed)
+
+`install.sh` does not download anything: it takes the image from `build/out/` of the
+folder it sits in. So fetch the source of a release tag and put that release's image
+and `SHA256SUMS` next to it (use `_arm64` instead of `_amd64` on an ARM board):
+
+```sh
+V=v1.2.0                                    # the release you want
+B=https://github.com/chicohaager/zimaos-mergerfs-snapraid-sysext
+curl -fsSL "$B/archive/refs/tags/$V.tar.gz" | tar xz
+cd "zimaos-mergerfs-snapraid-sysext-${V#v}"
+mkdir -p build/out
+curl -fsSL -o build/out/mergerfs-snapraid_amd64.raw "$B/releases/download/$V/mergerfs-snapraid_amd64.raw"
+curl -fsSL -o build/out/SHA256SUMS                  "$B/releases/download/$V/SHA256SUMS"
+sudo ./install.sh        # verifies the checksum, then continues as below
+```
+
+Download `SHA256SUMS` too: without it `install.sh` only warns and skips the check.
+
+### Install, configure, start (release or source build)
+
 ```sh
 sudo ./install.sh                       # config + logs in /DATA/AppData/mergerfs-snapraid
 # or keep them elsewhere, e.g. on a SATA SSD that ZimaOS mounts late:
