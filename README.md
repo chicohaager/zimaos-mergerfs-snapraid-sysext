@@ -357,6 +357,33 @@ sudo "$T" ctl -m /DATA/Storage list values   # runtime branch/option introspecti
 - Phase 4: evaluate SnapRAID Daemon v1.9 (web UI) — sysext vs container. **unsicher**
 - Phase 5: Mod-Store PR for 1-click install.
 
+## License
+
+The scripts, units, build files and documentation of this repository are licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](LICENSE-MIT))
+
+at your option. Unless you explicitly state otherwise, any contribution intentionally submitted for
+inclusion in this work shall be dual licensed as above, without any additional terms or conditions.
+
+### Third-party software
+
+The released `.raw` image contains two programs that are **not** covered by the licenses above. The versions
+and download URLs are the ones the build scripts use; this section states what the upstream projects say and
+is not legal advice.
+
+| Program | Version | License (upstream file) | Source |
+|---|---|---|---|
+| [mergerfs](https://github.com/trapexit/mergerfs) | 2.42.0 (binaries from the official static release tarball, only relocated to `/usr`; SHA256 pinned in `build/build-sysext.sh`) | ISC (`LICENSE`) | `https://github.com/trapexit/mergerfs/releases/download/2.42.0/` |
+| [SnapRAID](https://www.snapraid.it) | 15.0 (built statically from the release tarball, SHA256 pinned in `build/Dockerfile.snapraid`) | GPL-3.0-or-later (`COPYING`: "The SnapRAID project as a whole … is provided under the GPL-3.0-or-later License") | `https://github.com/amadvance/snapraid/releases/download/v15.0/snapraid-15.0.tar.gz` |
+
+The SnapRAID binary in the image is built from exactly that source tarball with `build/Dockerfile.snapraid`
+(no patches), so the corresponding source and the build recipe are in this repository's `build/` folder and the
+upstream release. The optional maintenance runner (`mergerfs-tool.sh`) fetches
+[trapexit/mergerfs-tools](https://github.com/trapexit/mergerfs-tools) (ISC) at a pinned commit when it builds its
+container on your machine; it is not part of the image.
+
 ---
 
 ## ☕ Support
