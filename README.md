@@ -228,8 +228,10 @@ Files app) with the unit's last journal lines, then runs `NOTIFY_CMD` if set, e.
   (see `docs/TESTLOG.md`).
 - **SnapRAID disk identity:** SnapRAID keys disks by path; ZimaOS assigns
   `/media/sdX` by detection order, so a replacement can land on a different
-  letter. Prefer by-LABEL/UUID mounts; `replace-disk.sh` reconciles the path and
-  refuses to proceed on a mismatch. **Risiko — handled, not eliminated.**
+  letter. Prefer by-LABEL/UUID mounts. `replace-disk.sh` refuses a path that is
+  not a mount, sits on the same device as another configured data/parity disk, or
+  holds data (a replacement must be blank). It cannot tell two blank disks apart —
+  check `lsblk -f` before confirming. **Risiko — handled, not eliminated.**
 - **State under `/DATA/AppData`** (ext4 persistent); never `/var` (tmpfs).
 - **SnapRAID is static** (`LDFLAGS=-static`) — the PoC's snapraid was dynamically
   linked against Debian glibc and only worked by luck on the test board.
@@ -251,7 +253,8 @@ sync` while a disk is missing (it can overwrite still-recoverable parity).
 # 1. Format the replacement ext4/xfs and mount it at the SAME path the failed
 #    disk used (the `data d<N> <path>` line in snapraid.conf). ZimaOS may assign
 #    a different /media/sdX letter — verify the mount; by-LABEL/UUID is safer.
-# 2. Run the guided helper (it refuses a non-mount path or an exFAT/NTFS disk):
+# 2. Run the guided helper (it refuses a non-mount path, an exFAT/NTFS disk,
+#    another configured disk, or a disk that is not empty):
 sudo /DATA/AppData/mergerfs-snapraid/scripts/replace-disk.sh d1
 ```
 
