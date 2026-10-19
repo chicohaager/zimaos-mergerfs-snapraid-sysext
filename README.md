@@ -13,7 +13,10 @@ minor ZimaOS updates.
 >
 > Re-run on a **ZimaBoard 2** (ZimaOS 1.8.0) with v1.2.0 on 2026-10-18, using RAM-backed stand-in disks:
 > install from the release, pool, sync, check, delete guard and `replace-disk.sh` all passed. A reboot there on
-> 2026-10-19 brought the module, the units and the pool back by themselves (11 of 11 checks, see `docs/TESTLOG.md`).
+> 2026-10-19 brought the module, the units and the pool back by themselves (11 of 11 checks). Two more reboots the
+> same day added SnapRAID on three separate devices (parity on a USB SSD) and AppData on a USB SSD that ZimaOS mounts
+> only during boot; the pool waited for its config and came back with SnapRAID clean (13 of 13 checks each, see
+> `docs/TESTLOG.md`).
 >
 > **Caveats:** the array test was **single-spindle** (one disk partitioned into
 > data+parity) — it validates every software path but not real multi-disk fault
