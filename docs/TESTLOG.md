@@ -367,3 +367,19 @@ USB SSD, data1 on `/DATA`, parity on the btrfs RAID. After the reboot the journa
 the AppData folder and the test folders on all devices; original image back.
 
 **Still not covered:** arm64 on real hardware.
+
+## 2026-10-19 — v1.2.1 on a ZimaBoard 2 (ZimaOS 1.8.0): no alert before setup, replace-disk guards
+
+Installed from the release assets (image sha256 `303b9a85…` = `SHA256SUMS`), stand-in disks (tmpfs, own device each).
+Script: `mergerfs-guards-test.sh` in the maintainer's host-script collection.
+
+| # | Case | Result v1.2.1 | Control: same script on v1.2.0 |
+|---|---|---|---|
+| 1 | 20 s after `install.sh` (watchdog timer has fired, pool refused the example) | pool unit `failed`, **0** alert files | FAIL — alert file written |
+| 2 | first sync over d1+d2 | rc=0 | rc=0 |
+| 3 | d1 "failed", the other data disk d2 bind-mounted at d1's path | `REFUSE: … is on the same device as d2 …`, no `snapraid fix` | FAIL — not refused |
+| 4 | replacement holds a file | `REFUSE: … is not empty (first entries: …/alte-datei.bin)`, no fix | FAIL — not refused |
+| 5 | replacement as ZimaOS adopts it: `.mergerfs.branch .trash .zimaos_storage.json lost+found` | accepted, `16 recovered errors`, `0 unrecoverable errors`, all 8 files sha256-identical, timers active | ok |
+| 6 | afterwards | 0 failed units, the box's 4 containers unchanged | — |
+
+**Cleanup:** original image back (sha256 `0a4bb551…`), no test mounts, config and defaults removed — 8 of 8 checks, after both runs.
