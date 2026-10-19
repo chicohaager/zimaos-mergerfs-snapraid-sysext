@@ -15,6 +15,21 @@ APP_DIR=/DATA/AppData/mergerfs-snapraid
 # shellcheck disable=SC1090
 [ -f "${MSR_DEFAULTS:-/etc/default/mergerfs-snapraid}" ] && . "${MSR_DEFAULTS:-/etc/default/mergerfs-snapraid}"
 
+# Not set up yet is not a failure: right after install the config is the shipped example,
+# the unit refuses (REFUSE … unedited example) and stays "failed" — visible in
+# `systemctl --failed`, but no alert file and no NOTIFY_CMD push. Without this a fresh
+# install alerted at once (the watchdog timer starts the pool) and every night at 04:00.
+EXAMPLES_DIR="${EXAMPLES_DIR:-/usr/lib/mergerfs-snapraid}"
+case "$UNIT" in
+    mergerfs-pool.service) CFG="$APP_DIR/config/pool.env"; EX="$EXAMPLES_DIR/pool.env.example" ;;
+    snapraid-sync.service|snapraid-scrub.service) CFG="$APP_DIR/config/snapraid.conf"; EX="$EXAMPLES_DIR/snapraid.conf.example" ;;
+    *) CFG=""; EX="" ;;
+esac
+if [ -n "$CFG" ] && [ -f "$EX" ] && cmp -s "$CFG" "$EX"; then
+    echo "mergerfs-snapraid: $UNIT refused — not configured yet ($CFG is the unedited example), no alert"
+    exit 0
+fi
+
 echo "mergerfs-snapraid ALERT: $UNIT failed"
 ALERT_FILE=""
 # Only write if APP_DIR exists: a pool that failed because its disk is missing must
