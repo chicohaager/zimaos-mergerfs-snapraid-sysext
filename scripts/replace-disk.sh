@@ -11,8 +11,10 @@
 #   4. snapraid -d <name> fix  ->  check  ->  sync
 #   5. restart pool + timers
 #
-# Refuses to run if the configured path is not an actual mount, or the FS is
-# exFAT/NTFS (no POSIX perms/xattrs/hardlinks -> unsafe for the array).
+# Refuses to run if the configured path is not an actual mount, the FS is
+# exFAT/NTFS (no POSIX perms/xattrs/hardlinks -> unsafe for the array), the path is on
+# the same device as another configured data/parity disk, or the disk is not empty
+# (the emptiness check is skipped when resuming an interrupted recovery).
 #
 # Usage:  replace-disk.sh <data-name>        e.g.  replace-disk.sh d1
 # DANGER: only run with the OLD disk physically gone and the NEW disk mounted.
@@ -77,6 +79,34 @@ case "$FSTYPE" in
     unknown)
         echo "WARNING: could not determine filesystem type — verify manually before continuing." ;;
 esac
+
+# --- guard 3: the right disk — not another configured disk -----------------------
+# ZimaOS assigns /media/sdX by detection order: after a failure a SURVIVING data or
+# parity disk can end up at the failed disk's path. fix would then write onto it.
+DEV="$(stat -c %d "$DISK_PATH")"
+awk -v n="$NAME" '$1=="data" && $2!=n {print $2, $3} $1 ~ /^([2-6]-)?parity$/ {print $1, $2}' "$CONF" |
+while read -r other opath; do
+    case "$other" in *parity) opath="$(dirname "$opath")" ;; esac
+    [ -e "$opath" ] || continue
+    if [ "$(stat -c %d "$opath")" = "$DEV" ]; then
+        echo "REFUSE: $DISK_PATH is on the same device as $other ($opath) — that is another configured disk,"
+        echo "        not the replacement. Check which disk ZimaOS mounted where (lsblk -f, findmnt)."
+        exit 1
+    fi
+done || exit 1
+
+# --- guard 4: the replacement must be blank (unless resuming an interrupted recovery) ---
+# A disk with data on it is not a blank replacement: most likely the wrong disk.
+# lost+found (mkfs) and the pool's .mergerfs.branch marker are expected on a fresh disk.
+if [ ! -e "${APP_DIR}/RECOVERY-IN-PROGRESS" ]; then
+    LEFT="$(find "$DISK_PATH" -mindepth 1 -maxdepth 1 ! -name lost+found ! -name .mergerfs.branch | head -3 | tr '\n' ' ')"
+    if [ -n "$LEFT" ]; then
+        echo "REFUSE: $DISK_PATH is not empty (first entries: $LEFT)."
+        echo "        A replacement must be a freshly formatted disk. If this is the wrong disk, mount the"
+        echo "        new one at $DISK_PATH; if it is the new disk, empty it first."
+        exit 1
+    fi
+fi
 
 # --- step 1: status --------------------------------------------------------------
 echo "--- snapraid status ---"
