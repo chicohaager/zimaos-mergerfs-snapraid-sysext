@@ -340,5 +340,12 @@ answered again at 09:53:08.
 image was put back (sha256 `0a4bb551…`), units, config, `/etc/default` file and test folders removed, 0
 failed units, same containers.
 
-**Still not covered:** AppData on a second disk that is mounted late during boot, real separate disks on
-this machine, arm64 on real hardware.
+Second run the same morning with SnapRAID on three devices: data1 in a folder on `/DATA` (eMMC), data2 in a
+folder on the box's btrfs RAID, parity on a 120 GB USB SSD (exFAT, mounted by ZimaOS during boot; parity only,
+because exFAT has no persistent inode numbers for data disks). First sync through `snapraid-sync.service`
+(`Result=success`), `check` clean. Reboot at 10:19; afterwards 13 of 13 checks passed, including
+`snapraid status` ("No error detected") and `snapraid check`. Cleanup removed the test folders on all three
+devices; original image back.
+
+**Still not covered:** AppData on a second disk that is mounted late during boot, data disks on a USB disk,
+arm64 on real hardware.
