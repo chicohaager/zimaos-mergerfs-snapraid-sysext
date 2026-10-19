@@ -313,3 +313,32 @@ left on device"); the run used `16M`.
 **Cleanup:** `uninstall.sh`, the original image put back (sha256 `0a4bb551…` again), test directories removed.
 
 **Not covered:** a reboot on this machine, real separate disks, arm64 on real hardware.
+
+## 2026-10-19 — v1.2.0 reboot on the ZimaBoard 2
+
+Same machine as above, same starting point (original image `0a4bb551…`, no config, no `/etc/default`
+file, 4 containers). v1.2.0 installed again from the release assets (image sha256 `d225dbe4…` = `SHA256SUMS`).
+The pool for this test sits on two folders under `/DATA` (one filesystem, `.mergerfs.branch` markers),
+because tmpfs disks would not survive the reboot; SnapRAID is therefore not part of this run (it refuses two
+data disks on one device, see above).
+
+Before the reboot: pool mounted as `fuse.mergerfs`, 4 random test files (1 MiB each) recorded by sha256, boot
+ID, image hash, mtime of `/etc/default/mergerfs-snapraid` and the running containers saved. No established
+connections to container ports, RAID `[UU]`, 0 failed units. Reboot triggered at 09:52:22 CEST (5 s delay); SSH
+answered again at 09:53:08.
+
+| # | Check after the reboot | Result |
+|---|---|---|
+| 1 | boot ID changed, uptime < 90 min | yes (`cd67a84a…` → `60a14b96…`) |
+| 2 | `mergerfs-snapraid` merged, image sha256 unchanged | yes |
+| 3 | `/etc/default/mergerfs-snapraid` present, same mtime | yes |
+| 4 | `mergerfs-pool.service` active, watchdog/sync/scrub timers active | yes; mergerfs started 09:52:52, the watchdog ran at 09:52:58 and found the pool up |
+| 5 | pool mounted as `fuse.mergerfs`, the 4 files byte-identical | yes |
+| 6 | 0 failed units, same containers as before | yes |
+
+11 of 11 checks passed (counted from the output file). Nothing was started by hand. Afterwards the original
+image was put back (sha256 `0a4bb551…`), units, config, `/etc/default` file and test folders removed, 0
+failed units, same containers.
+
+**Still not covered:** AppData on a second disk that is mounted late during boot, real separate disks on
+this machine, arm64 on real hardware.
