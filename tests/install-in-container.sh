@@ -218,6 +218,18 @@ echo d1 | /rd/replace-disk.sh d1 > /out5g 2>&1; rc=$?
 [ "$rc" = 0 ] && grep -q 'SNAPRAID .* fix' /calls \
     && ok "a retry (marker present) may continue on a partly rebuilt disk" || { bad "retry refused rc=$rc"; cat /out5g; }
 rm -f /dev/shm/leftover.bin $M
+# ZimaOS adopts a disk the moment it is plugged in and writes .zimaos_storage.json and an
+# empty .trash onto it (measured 2026-10-19, ZimaBoard 2, ZimaOS 1.8.0, README "Plugging in
+# a disk writes to it") — a genuine replacement looks like this and must be accepted.
+mkdir -p /dev/shm/lost+found /dev/shm/.trash; echo '{}' > /dev/shm/.zimaos_storage.json; : > /calls
+echo d1 | /rd/replace-disk.sh d1 > /out5i 2>&1; rc=$?
+[ "$rc" = 0 ] && grep -q 'SNAPRAID .* fix' /calls \
+    && ok "accepts a replacement ZimaOS already adopted (.zimaos_storage.json, empty .trash, lost+found)" || { bad "freshly adopted replacement refused rc=$rc"; cat /out5i; }
+: > /calls; touch /dev/shm/.trash/deleted-photo.jpg
+echo d1 | /rd/replace-disk.sh d1 > /out5j 2>&1; rc=$?
+[ "$rc" != 0 ] && ! grep -q 'SNAPRAID .* fix' /calls && grep -q 'not empty' /out5j \
+    && ok "refuses when .trash holds files (a used disk, not a blank one)" || { bad "used .trash accepted rc=$rc"; cat /out5j; }
+rm -rf /dev/shm/.trash /dev/shm/lost+found /dev/shm/.zimaos_storage.json $M
 mkdir -p /dev/shm/other
 printf 'parity /p/snapraid.parity\ncontent /c/snapraid.content\ndata d1 /dev/shm\ndata d2 /dev/shm/other\n' > $RA/config/snapraid.conf
 : > /calls

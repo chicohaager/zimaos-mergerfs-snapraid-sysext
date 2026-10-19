@@ -230,7 +230,8 @@ Files app) with the unit's last journal lines, then runs `NOTIFY_CMD` if set, e.
   `/media/sdX` by detection order, so a replacement can land on a different
   letter. Prefer by-LABEL/UUID mounts. `replace-disk.sh` refuses a path that is
   not a mount, sits on the same device as another configured data/parity disk, or
-  holds data (a replacement must be blank). It cannot tell two blank disks apart —
+  holds data (a replacement must be blank — what ZimaOS writes when the disk is plugged
+  in, `.zimaos_storage.json` and an empty `.trash`, is allowed). It cannot tell two blank disks apart —
   check `lsblk -f` before confirming. **Risiko — handled, not eliminated.**
 - **State under `/DATA/AppData`** (ext4 persistent); never `/var` (tmpfs).
 - **SnapRAID is static** (`LDFLAGS=-static`) — the PoC's snapraid was dynamically
