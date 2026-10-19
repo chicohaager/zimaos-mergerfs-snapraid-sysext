@@ -347,5 +347,18 @@ because exFAT has no persistent inode numbers for data disks). First sync throug
 `snapraid status` ("No error detected") and `snapraid check`. Cleanup removed the test folders on all three
 devices; original image back.
 
-**Still not covered:** AppData on a second disk that is mounted late during boot, data disks on a USB disk,
-arm64 on real hardware.
+Third run: the late-disk case from the forum. Installed with `install.sh --app-dir
+/media/sdc1/mergerfs-snapraid`, so `config/` and `logs/` live on the USB SSD (now ext4); data2 on the same
+USB SSD, data1 on `/DATA`, parity on the btrfs RAID. After the reboot the journal shows the order:
+
+| Time (CEST) | Event |
+|---|---|
+| 10:41:36.62 | kernel starts |
+| 10:41:40.66 | `start-pool.sh`: "waiting for /media/sdc1/mergerfs-snapraid/config/pool.env (up to 300s)..." |
+| 10:41:41.24 | ZimaOS storage daemon mounts `sdc1` |
+| 10:41:43.23 | "mergerfs pool mounted" |
+
+13 of 13 checks passed (pool, timers, files byte-identical, `snapraid status`/`check` clean). Cleanup removed
+the AppData folder and the test folders on all devices; original image back.
+
+**Still not covered:** arm64 on real hardware.

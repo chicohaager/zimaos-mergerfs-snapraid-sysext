@@ -220,7 +220,9 @@ Files app) with the unit's last journal lines, then runs `NOTIFY_CMD` if set, e.
   work; hand-edited copies from older installs are moved to `scripts/.replaced-<date>/`.
   The units also carry `RequiresMountsFor=/DATA` (ZimaOS KB: `/DATA` is a late bind
   mount not ordered behind `local-fs.target`). Stub-tested + image-checked;
-  **cold boot with AppData on a second disk not yet hardware-tested.**
+  **Cold boot with AppData on a late USB disk tested on a ZimaBoard 2 (2026-10-19):** the pool
+  waited 2.6 s for `pool.env` until ZimaOS had mounted the disk, then came up by itself
+  (see `docs/TESTLOG.md`).
 - **SnapRAID disk identity:** SnapRAID keys disks by path; ZimaOS assigns
   `/media/sdX` by detection order, so a replacement can land on a different
   letter. Prefer by-LABEL/UUID mounts; `replace-disk.sh` reconciles the path and
@@ -322,6 +324,10 @@ sudo "$T" ctl -m /DATA/Storage list values   # runtime branch/option introspecti
   (`journalctl -u systemd-sysext`); as a quick test, rebuild with the
   `ARCHITECTURE=` line removed from `build-sysext.sh` (install.sh already selects
   the correct arch by `uname -m`).
+- **Plugging in a disk writes to it:** ZimaOS adopts a newly attached disk right away (ext4 and
+  exFAT seen), mounts it under `/media/<name>` (plus two bind mounts) and creates
+  `.zimaos_storage.json` and `.trash` on it. Use a disk whose contents you can spare, or copy
+  them off first. *Seen on a ZimaBoard 2 with ZimaOS 1.8.0, 2026-10-19.*
 - **Pool not mounted after reboot:** check `systemctl status mergerfs-pool.service`
   and that the watchdog timer fired (`systemctl status mergerfs-pool-watchdog.timer`).
   "branch … is empty and not a mountpoint … refusing" means a disk was not mounted in
