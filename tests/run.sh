@@ -209,6 +209,29 @@ if [ "$rc" = 0 ] && [ -n "$f" ] && grep -q 'journal line for -u snapraid-sync.se
 else
     fail "alert.sh: rc=$rc file=$f notified=$(cat "$T/notified" 2>/dev/null)"
 fi
+# A unit that "failed" only because its config is still the shipped example is not set up
+# yet — no alert (measured 2026-10-19 on a ZimaBoard 2: a fresh install wrote
+# ALERT-mergerfs-pool.service-… at once, the watchdog timer had started the pool).
+setup alert_unconfigured
+mkdir -p "$APP/logs" "$APP/config" "$T/ex"
+printf '#!/bin/sh\necho "journal line for $*"\n' > "$T/bin/journalctl"; chmod +x "$T/bin/journalctl"
+echo "NOTIFY_CMD='echo \"\$ALERT_UNIT\" >> $T/notified'" >> "$T/defaults"
+printf 'MOUNTPOINT="/DATA/Storage"\nBRANCHES="/media/sda:/media/sdb"\n' > "$T/ex/pool.env.example"
+printf 'parity /media/parity1/snapraid.parity\ndata d1 /media/sda\n' > "$T/ex/snapraid.conf.example"
+cp "$T/ex/pool.env.example" "$APP/config/pool.env"; cp "$T/ex/snapraid.conf.example" "$APP/config/snapraid.conf"
+for u in mergerfs-pool.service snapraid-sync.service snapraid-scrub.service; do
+    out="$(EXAMPLES_DIR="$T/ex" PATH="$T/bin:$PATH" sh "$REPO/scripts/alert.sh" "$u" 2>&1)"; rc=$?
+    if [ "$rc" = 0 ] && ! ls "$APP"/logs/ALERT-"$u"-* >/dev/null 2>&1 && ! grep -q "^$u\$" "$T/notified" 2>/dev/null \
+       && printf '%s' "$out" | grep -q 'not configured yet'; then
+        pass "alert.sh stays quiet for $u while its config is the unedited example"
+    else
+        fail "alert.sh alerted for unconfigured $u (rc=$rc): $out"
+    fi
+done
+echo 'BRANCHES="/mnt/a:/mnt/b"' >> "$APP/config/pool.env"
+EXAMPLES_DIR="$T/ex" PATH="$T/bin:$PATH" sh "$REPO/scripts/alert.sh" mergerfs-pool.service >/dev/null 2>&1
+ls "$APP"/logs/ALERT-mergerfs-pool.service-* >/dev/null 2>&1 && grep -q '^mergerfs-pool.service$' "$T/notified" \
+    && pass "alert.sh alerts again once its config is edited" || fail "no alert for an edited pool config"
 for u in mergerfs-pool.service snapraid-sync.service snapraid-scrub.service; do
     grep -q '^OnFailure=mergerfs-snapraid-alert@%n.service$' "$REPO/units/$u" \
         && pass "$u triggers the alert on failure" || fail "$u has no OnFailure alert"
