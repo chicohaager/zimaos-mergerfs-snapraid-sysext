@@ -69,6 +69,11 @@ check → Everything OK ; sync re-aligned ; pool auto-restarted (fuse.mergerfs)
 data1 restored: 12/12 files
 ```
 
+> **Counting note (2026-10-19):** SnapRAID's `recovered` / `unrecoverable` numbers count
+> **errors**, not files. In the v1.2.0 run further down, `d1` held 4 files of 3 MiB each =
+> 4 × 12 blocks of 256 KiB (SnapRAID's default block size) = the `48 recovered errors` it
+> printed. The figures above are summaries of such output, not file counts.
+
 ## ZimaOS gotchas discovered (folded into README + KB)
 
 - **G1 — `mksquashfs` must be `gzip`**: kernel SquashFS has ZLIB/LZ4/LZO only, no
@@ -307,7 +312,7 @@ left on device"); the run used `16M`.
 | 2 | pool over `d1`+`d2` | `fuse.mergerfs`, 8 files from both disks in one folder |
 | 3 | first sync, `check` | rc=0 "Everything OK"; `check`: "Everything OK" |
 | 4 | guard with `DELETE_THRESHOLD=0`, one file deleted | `ABORT: 1 files removed > limit 0`, prints `sudo …/snapraid-sync.sh --allow-deletes 1`; that one-time release syncs (rc=0) |
-| 5 | `d1` replaced by a blank disk, `replace-disk.sh d1` | 48 recovered, 0 unrecoverable; all 8 files sha256-identical; timers active, marker removed, pool remounted |
+| 5 | `d1` replaced by a blank disk, `replace-disk.sh d1` | `48 recovered errors`, `0 unrecoverable errors` (errors, not files: 4 files × 12 blocks on `d1`); all 8 files sha256-identical; timers active, marker removed, pool remounted |
 | 6 | afterwards | 0 failed units; the box's 4 containers unchanged |
 
 **Cleanup:** `uninstall.sh`, the original image put back (sha256 `0a4bb551…` again), test directories removed.
