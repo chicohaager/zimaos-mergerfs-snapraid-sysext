@@ -207,6 +207,25 @@ echo d1 | /rd/replace-disk.sh d1 > /out5e 2>&1; rc=$?
     && ok "refuses to start while a sync is running" || { bad "started during a running sync rc=$rc"; cat /out5e; }
 rm -f /stub/active-snapraid-sync.service
 
+# --- 5b) replace-disk: only a BLANK disk, and not one of the other configured disks ---
+# README: "refuses to proceed on a mismatch"; header step 3: "right FS, empty".
+: > /calls; rm -f $M; touch /dev/shm/leftover.bin
+echo d1 | /rd/replace-disk.sh d1 > /out5f 2>&1; rc=$?
+[ "$rc" != 0 ] && ! grep -q 'SNAPRAID .* fix' /calls && [ ! -f $M ] && grep -q 'not empty' /out5f \
+    && ok "refuses a replacement that is not empty (no fix, no marker)" || { bad "non-empty replacement accepted rc=$rc"; cat /out5f; }
+: > /calls; touch $M
+echo d1 | /rd/replace-disk.sh d1 > /out5g 2>&1; rc=$?
+[ "$rc" = 0 ] && grep -q 'SNAPRAID .* fix' /calls \
+    && ok "a retry (marker present) may continue on a partly rebuilt disk" || { bad "retry refused rc=$rc"; cat /out5g; }
+rm -f /dev/shm/leftover.bin $M
+mkdir -p /dev/shm/other
+printf 'parity /p/snapraid.parity\ncontent /c/snapraid.content\ndata d1 /dev/shm\ndata d2 /dev/shm/other\n' > $RA/config/snapraid.conf
+: > /calls
+echo d1 | /rd/replace-disk.sh d1 > /out5h 2>&1; rc=$?
+[ "$rc" != 0 ] && ! grep -q 'SNAPRAID .* fix' /calls && grep -q 'same device as d2' /out5h \
+    && ok "refuses when the path sits on the same device as another configured disk" || { bad "other disk's device accepted rc=$rc"; cat /out5h; }
+rmdir /dev/shm/other
+
 echo; [ "$FAILS" = 0 ] && echo "all container checks passed" || echo "$FAILS container check(s) FAILED"
 [ "$FAILS" = 0 ]
 IN
