@@ -97,9 +97,13 @@ done || exit 1
 
 # --- guard 4: the replacement must be blank (unless resuming an interrupted recovery) ---
 # A disk with data on it is not a blank replacement: most likely the wrong disk.
-# lost+found (mkfs) and the pool's .mergerfs.branch marker are expected on a fresh disk.
+# Expected on a fresh disk: the pool's .mergerfs.branch marker, an empty lost+found (mkfs),
+# and what ZimaOS writes the moment a disk is plugged in — .zimaos_storage.json and an empty
+# .trash (measured 2026-10-19 on a ZimaBoard 2, ZimaOS 1.8.0; README "Plugging in a disk
+# writes to it"). A non-empty lost+found or .trash means a used disk.
 if [ ! -e "${APP_DIR}/RECOVERY-IN-PROGRESS" ]; then
-    LEFT="$(find "$DISK_PATH" -mindepth 1 -maxdepth 1 ! -name lost+found ! -name .mergerfs.branch | head -3 | tr '\n' ' ')"
+    LEFT="$(find "$DISK_PATH" -mindepth 1 -maxdepth 1 ! -name .mergerfs.branch ! -name .zimaos_storage.json \
+        ! \( -type d \( -name lost+found -o -name .trash \) -empty \) | head -3 | tr '\n' ' ')"
     if [ -n "$LEFT" ]; then
         echo "REFUSE: $DISK_PATH is not empty (first entries: $LEFT)."
         echo "        A replacement must be a freshly formatted disk. If this is the wrong disk, mount the"
