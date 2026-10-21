@@ -27,6 +27,32 @@ minor ZimaOS updates.
 > `/usr`; this module shadows it with **2.42.0** while merged and reverts cleanly on
 > uninstall — so it also *upgrades* the built-in mergerfs.
 
+## Supported hardware
+
+`install.sh` picks the image by `uname -m`: `x86_64` → `_amd64`, `aarch64` → `_arm64`.
+Every Zima board on IceWhale's [hardware comparison](https://www.zimaspace.com/docs/hardware/)
+has an Intel CPU (checked 2026-10-21), so **all Zima hardware uses `_amd64`**. The `_arm64`
+image is built by CI but has never run on a machine.
+
+| Board | CPU (per zimaspace.com) | Image | Status |
+|---|---|---|---|
+| ZimaCube Pro | Intel i5-1235U | `_amd64` | **tested** — ZimaOS 1.6.1 (2026-05-30), 1.8.0 (2026-10-17/18), see `docs/TESTLOG.md` |
+| ZimaBoard 2 | Intel N150 | `_amd64` | **tested** — ZimaOS 1.8.0, v1.2.0 and v1.2.1 incl. reboots (2026-10-18/19) |
+| ZimaCube (first generation) | Intel N100 | `_amd64` | untested |
+| ZimaCube 2 / ZimaCube 2 Pro | Intel i3-1215U / i5-1235U | `_amd64` | untested |
+| ZimaBoard (first generation) | Intel Celeron N3350 / N3450 | `_amd64` | untested |
+| ZimaBlade 3760 / 7700 | Intel Celeron N3350 / quad-core N3450, J3455, E3950 | `_amd64` | untested |
+| any arm64 machine | — | `_arm64` | untested |
+
+"Untested" means nobody has reported a run yet, not that it is known to fail. Notes for the
+untested boards:
+
+- **ZimaBlade** ships with CasaOS; install ZimaOS first — this module is built and tested for ZimaOS only. It has
+  2 SATA ports: with SnapRAID that is one data disk plus one parity disk (parity ≥ largest data
+  disk); more disks need USB or a PCIe SATA card.
+- If you run it on an untested board, [docs/TESTGUIDE-mergerfs-tools.md](docs/TESTGUIDE-mergerfs-tools.md)
+  has a results form — a report with the board name and `uname -m` turns a row into "tested".
+
 ## What it gives you
 
 - Flexible mixed-size disk pooling (mergerfs), disks stay individually readable.
@@ -85,7 +111,7 @@ docker run --privileged --rm tonistiigi/binfmt --install all
 
 cd build
 ./build-snapraid.sh amd64
-./build-snapraid.sh arm64      # optional, for ZimaBoard
+./build-snapraid.sh arm64      # optional, untested (no Zima board is arm64)
 ./build-sysext.sh   amd64
 ./build-sysext.sh   arm64      # optional
 # -> build/out/mergerfs-snapraid_{amd64,arm64}.raw  +  build/out/SHA256SUMS
@@ -97,10 +123,10 @@ cd build
 
 `install.sh` does not download anything: it takes the image from `build/out/` of the
 folder it sits in. So fetch the source of a release tag and put that release's image
-and `SHA256SUMS` next to it (use `_arm64` instead of `_amd64` on an ARM board):
+and `SHA256SUMS` next to it (all Zima boards are x86-64 and use `_amd64`; `_arm64` only on an `aarch64` machine, untested):
 
 ```sh
-V=v1.2.0                                    # the release you want
+V=v1.2.1                                    # the release you want
 B=https://github.com/chicohaager/zimaos-mergerfs-snapraid-sysext
 curl -fsSL "$B/archive/refs/tags/$V.tar.gz" | tar xz
 cd "zimaos-mergerfs-snapraid-sysext-${V#v}"

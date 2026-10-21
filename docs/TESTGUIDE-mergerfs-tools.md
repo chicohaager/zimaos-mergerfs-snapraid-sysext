@@ -24,8 +24,8 @@ the bottom and report back on the PR or the forum thread.
   *removed from one disk + added to another*. Always use `--quiesce` — it stops the
   sync/scrub timers, runs the tool, re-syncs parity, and re-arms the timers. `balance`
   **refuses to run without it** (it has no dry-run upstream).
-- **arm64 is untested.** If you're on a Zima ARM board, please note that — your run would
-  be the first arm64 data point.
+- **arm64 is untested.** Every Zima board is x86-64 (`_amd64`); if you run this on an `aarch64`
+  machine, please note that — your run would be the first arm64 data point.
 - Make sure the pool is **idle** during a balance (pause Samba / apps writing to it).
 
 ---
