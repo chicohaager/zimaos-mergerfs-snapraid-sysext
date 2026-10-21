@@ -94,6 +94,22 @@ cat > "${TREE}/usr/lib/extension-release.d/extension-release.${NAME}" <<EOF
 ID=_any
 ARCHITECTURE=${SD_ARCH}
 EOF
+# SYSEXT_VERSION_ID (os-release(5)): the module version is the release tag. CI builds a
+# tag run with GITHUB_REF_TYPE=tag; locally only an exactly tagged commit counts. An
+# untagged build gets no version: "1.2.1-3-gabc" would sort as older than 1.2.1.
+MODULE_VERSION="${MODULE_VERSION:-}"
+if [ -z "$MODULE_VERSION" ] && [ "${GITHUB_REF_TYPE:-}" = tag ]; then
+    MODULE_VERSION="${GITHUB_REF_NAME:-}"
+fi
+if [ -z "$MODULE_VERSION" ]; then
+    MODULE_VERSION="$(git -C "${HERE}/.." describe --tags --exact-match 2>/dev/null || true)"
+fi
+MODULE_VERSION="${MODULE_VERSION#v}"
+case "$MODULE_VERSION" in
+    "") ;;
+    *[!0-9A-Za-z.+-]*) echo "invalid module version: $MODULE_VERSION" >&2; exit 1 ;;
+    *) printf 'SYSEXT_VERSION_ID=%s\n' "$MODULE_VERSION" >> "${TREE}/usr/lib/extension-release.d/extension-release.${NAME}" ;;
+esac
 
 # 4) pack squashfs (root-owned, reproducible-ish)
 # IMPORTANT: gzip, NOT zstd. The ZimaOS kernel's SquashFS only supports
