@@ -111,6 +111,19 @@ case "$MODULE_VERSION" in
     *) printf 'SYSEXT_VERSION_ID=%s\n' "$MODULE_VERSION" >> "${TREE}/usr/lib/extension-release.d/extension-release.${NAME}" ;;
 esac
 
+# 3b) module JSON: zpkg counts a module as installed only with
+# /usr/share/casaos/modules/<name>.json - without it `zpkg list` does not show the module and
+# `zpkg install` answers "module not installed" with rc=1 although the image is merged
+# (measured on ZimaOS 1.8.0, 2026-10-23). No "ui" key: no dashboard tile; "version" is what
+# `zpkg list` shows. Omitted for an untagged build, like SYSEXT_VERSION_ID above.
+mkdir -p "${TREE}/usr/share/casaos/modules"
+if [ -n "$MODULE_VERSION" ]; then
+    printf '{\n  "name": "%s",\n  "version": "v%s"\n}\n' "$NAME" "$MODULE_VERSION" > "${TREE}/usr/share/casaos/modules/${NAME}.json"
+else
+    printf '{\n  "name": "%s"\n}\n' "$NAME" > "${TREE}/usr/share/casaos/modules/${NAME}.json"
+fi
+chmod 0644 "${TREE}/usr/share/casaos/modules/${NAME}.json"
+
 # 4) pack squashfs (root-owned, reproducible-ish)
 # IMPORTANT: gzip, NOT zstd. The ZimaOS kernel's SquashFS only supports
 # gzip/lz4/lzo (CONFIG_SQUASHFS_ZSTD/XZ are not set). A zstd .raw fails the
