@@ -6,8 +6,11 @@
 #
 # Usage: sh tests/run.sh        exit 0 = all passed
 set -u
+umask 022    # as root's units: the folder check refuses a group-writable APP_DIR
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="$(mktemp -d)"
+# the folder check trusts root; here the test user owns the fake world
+APPDATA_GUARD_UID="$(id -u)"; export APPDATA_GUARD_UID
 trap 'rm -rf "$WORK"' EXIT
 FAILS=0
 
@@ -271,6 +274,33 @@ if grep -q 'chmod 0644 "\$UNIT_DIR/\$(basename "\$u")"' "$REPO/install.sh"; then
     pass "install.sh normalises unit file mode to 0644 (static check)"
 else
     fail "install.sh does not force unit files to 0644"
+fi
+
+# --- /DATA/AppData is 0777 without the sticky bit on ZimaOS 1.8 (KB §79.11) -----------
+# root sources pool.env from APP_DIR: a folder that is a symlink (or not root's) is refused
+setup appdata_symlink
+write_pool_cfg
+mv "$APP" "$T/planted" && ln -s "$T/planted" "$APP"
+out="$(sh "$REPO/scripts/start-pool.sh" 2>&1)"; rc=$?
+if [ "$rc" != 0 ] && printf '%s' "$out" | grep -q "ist ein Symlink" && [ ! -e "$T/calls" ]; then
+    pass "start-pool refuses an APP_DIR that is a symlink, before reading pool.env"
+else
+    fail "start-pool must refuse a symlinked APP_DIR (rc=$rc): $out"
+fi
+for s in mergerfs-tool.sh pool-status.sh replace-disk.sh snapraid-scrub.sh snapraid-sync.sh stop-pool.sh alert.sh start-pool.sh; do
+    if grep -q 'appdata-guard.sh}" --no-create "$APP_DIR"' "$REPO/scripts/$s"; then
+        pass "$s checks APP_DIR (appdata-guard.sh --no-create)"
+    else
+        fail "$s reads APP_DIR without the folder check"
+    fi
+done
+MODKIT="$REPO/../../lintux-modkit/sysext/appdata-guard.sh"
+if [ ! -f "$MODKIT" ]; then
+    pass "appdata-guard.sh copy (lintux-modkit not next to the repo, not compared)"
+elif cmp -s "$MODKIT" "$REPO/scripts/appdata-guard.sh"; then
+    pass "scripts/appdata-guard.sh is lintux-modkit's"
+else
+    fail "scripts/appdata-guard.sh differs from $MODKIT — copy it again"
 fi
 
 echo

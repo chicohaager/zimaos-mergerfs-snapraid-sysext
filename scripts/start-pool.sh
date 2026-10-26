@@ -24,6 +24,10 @@ while [ ! -f "$ENV_FILE" ]; do
     [ "$i" = 1 ] && echo "waiting for $ENV_FILE (up to ${CONFIG_WAIT}s)..."
     sleep 1
 done
+# /DATA/AppData is writable by everyone on ZimaOS 1.8 (0777, no sticky bit; KB §79.11 of the
+# lintux notes): root reads pool.env/snapraid.conf from APP_DIR, so the folder is checked first —
+# sticky bit on its parent, refused when it is a symlink, not root's or writable by others.
+sh "${MSR_GUARD:-$(dirname "$0")/appdata-guard.sh}" --no-create "$APP_DIR" || exit 1
 # The examples ship next to the scripts in the sysext. An unedited example config names
 # /media/sda + /media/sdb — real disks on many ZimaOS boxes — so never act on it.
 EXAMPLES_DIR="${EXAMPLES_DIR:-/usr/lib/mergerfs-snapraid}"

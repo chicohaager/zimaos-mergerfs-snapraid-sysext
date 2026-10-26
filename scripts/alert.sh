@@ -34,7 +34,8 @@ echo "mergerfs-snapraid ALERT: $UNIT failed"
 ALERT_FILE=""
 # Only write if APP_DIR exists: a pool that failed because its disk is missing must
 # not get a logs/ dir created on the bare mountpoint directory.
-if [ -d "$APP_DIR" ]; then
+# The folder check (see the other scripts) also guards the alert file: refused, nothing is written there.
+if [ -d "$APP_DIR" ] && sh "${MSR_GUARD:-$(dirname "$0")/appdata-guard.sh}" --no-create "$APP_DIR"; then
     mkdir -p "$APP_DIR/logs"
     ALERT_FILE="$APP_DIR/logs/ALERT-$UNIT-$(date +%F-%H%M%S).txt"
     {
