@@ -30,6 +30,10 @@ DELETE_THRESHOLD="${DELETE_THRESHOLD:-200}"
 # Check before mkdir: an absent APP_DIR means its disk is not mounted, and creating
 # logs/ would write onto the bare mountpoint directory underneath it.
 [ -f "$CONF" ] || { echo "missing $CONF — is the disk holding APP_DIR=$APP_DIR mounted?"; exit 1; }
+# /DATA/AppData is writable by everyone on ZimaOS 1.8 (0777, no sticky bit; KB §79.11 of the
+# lintux notes): root reads pool.env/snapraid.conf from APP_DIR, so the folder is checked first —
+# sticky bit on its parent, refused when it is a symlink, not root's or writable by others.
+sh "${MSR_GUARD:-$(dirname "$0")/appdata-guard.sh}" --no-create "$APP_DIR" || exit 1
 # The examples ship next to the scripts in the sysext. An unedited example config names
 # /media/sda + /media/sdb — real disks on many ZimaOS boxes — so never act on it.
 EXAMPLES_DIR="${EXAMPLES_DIR:-/usr/lib/mergerfs-snapraid}"

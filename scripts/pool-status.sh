@@ -11,6 +11,10 @@ APP_DIR=/DATA/AppData/mergerfs-snapraid
 [ -f "${MSR_DEFAULTS:-/etc/default/mergerfs-snapraid}" ] && . "${MSR_DEFAULTS:-/etc/default/mergerfs-snapraid}"
 ENV_FILE="${APP_DIR}/config/pool.env"
 [ -f "$ENV_FILE" ] || { echo "missing $ENV_FILE"; exit 1; }
+# /DATA/AppData is writable by everyone on ZimaOS 1.8 (0777, no sticky bit; KB §79.11 of the
+# lintux notes): root reads pool.env/snapraid.conf from APP_DIR, so the folder is checked first —
+# sticky bit on its parent, refused when it is a symlink, not root's or writable by others.
+sh "${MSR_GUARD:-$(dirname "$0")/appdata-guard.sh}" --no-create "$APP_DIR" || exit 1
 # shellcheck disable=SC1090
 . "$ENV_FILE"
 : "${MOUNTPOINT:?set MOUNTPOINT in pool.env}"
