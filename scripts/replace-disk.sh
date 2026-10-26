@@ -35,6 +35,10 @@ SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 [ -n "$NAME" ] || { echo "usage: $0 <data-name>   (the SnapRAID data id, e.g. d1)"; exit 1; }
 [ -x "$BIN" ]   || { echo "snapraid binary not found at $BIN (is the sysext merged?)"; exit 1; }
 [ -f "$CONF" ]  || { echo "missing $CONF"; exit 1; }
+# /DATA/AppData is writable by everyone on ZimaOS 1.8 (0777, no sticky bit; KB §79.11 of the
+# lintux notes): root reads pool.env/snapraid.conf from APP_DIR, so the folder is checked first —
+# sticky bit on its parent, refused when it is a symlink, not root's or writable by others.
+sh "${MSR_GUARD:-$(dirname "$0")/appdata-guard.sh}" --no-create "$APP_DIR" || exit 1
 
 mkdir -p "$LOGDIR"
 # POSIX-safe logging: re-run ourselves once with all output teed to the logfile.
