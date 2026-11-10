@@ -16,6 +16,15 @@ LIST="$(unsquashfs -lls "$RAW")"
 # zpkg/systemd-sysext: release file name must match the installed image name (KB §18.9)
 printf '%s\n' "$LIST" | grep -q " squashfs-root/usr/lib/extension-release.d/extension-release.${NAME}\$" \
     || fail "extension-release.${NAME} missing"
+# zpkg counts a module as installed only with its module JSON (measured 1.8.0, 2026-10-23)
+printf '%s\n' "$LIST" | grep -q " squashfs-root/usr/share/casaos/modules/${NAME}.json\$" \
+    || fail "usr/share/casaos/modules/${NAME}.json missing (zpkg list would not show the module)"
+J="$(unsquashfs -cat "$RAW" "usr/share/casaos/modules/${NAME}.json" 2>/dev/null)"
+printf '%s\n' "$J" | grep -q "\"name\": \"${NAME}\"" || fail "module JSON does not name ${NAME}"
+V="$(unsquashfs -cat "$RAW" "usr/lib/extension-release.d/extension-release.${NAME}" 2>/dev/null | sed -n 's/^SYSEXT_VERSION_ID=//p')"
+if [ -n "$V" ]; then
+    printf '%s\n' "$J" | grep -q "\"version\": \"v${V}\"" || fail "module JSON version differs from SYSEXT_VERSION_ID=${V}"
+fi
 for b in usr/bin/mergerfs usr/bin/snapraid; do
     printf '%s\n' "$LIST" | grep -q "^-rwx.* squashfs-root/${b}\$" || fail "$b missing or not executable"
 done
