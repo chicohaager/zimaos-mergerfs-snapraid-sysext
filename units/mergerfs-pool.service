@@ -4,12 +4,11 @@ Description=mergerfs storage pool (ZimaOS)
 # Order strictly after the sysext overlay is merged.
 After=systemd-sysext.service local-fs.target
 Wants=systemd-sysext.service
-# Gate on /usr/bin/snapraid, NOT /usr/bin/mergerfs: the ZimaOS base already ships an
-# ancient mergerfs (v1.5.4) at /usr/bin/mergerfs, so that path ALWAYS exists and is a
-# useless "merge happened" signal — pre-merge it runs start-pool.sh against v1.5.4,
-# which rejects modern -o options and fails the unit (the boot-race users hit).
-# snapraid is provided ONLY by this sysext, so its presence means the merge is done.
-ConditionPathExists=/usr/bin/snapraid
+# Gate on the script this unit runs, which only this sysext ships. Not on a binary:
+# the ZimaOS base ships mergerfs (v1.5.4 up to 1.8.0, 2.42.0 since 1.8.1) and, since
+# 1.8.1, snapraid 15.1 — both paths exist before the merge. This unit file lives in
+# /etc/systemd/system, so without the merge it is skipped instead of failing.
+ConditionPathExists=/usr/lib/mergerfs-snapraid/start-pool.sh
 # The default MOUNTPOINT/APP_DIR live on /DATA, a late bind mount that is NOT behind
 # local-fs.target (ZimaOS KB §42). Scripts come from the sysext, so they never depend
 # on a late disk; start-pool.sh itself waits for APP_DIR's config (forum #21).
