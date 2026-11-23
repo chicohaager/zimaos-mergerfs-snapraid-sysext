@@ -268,6 +268,25 @@ else
     fail "unit Exec* outside the sysext:$bad"
 fi
 
+# --- merge signal: a path only this sysext ships ------------------------------------
+# ZimaOS 1.8.1 ships snapraid 15.1 (and mergerfs 2.42.0) in its base image, so
+# /usr/bin/snapraid exists before the merge too (ZimaOS KB §88). The units live in
+# /etc/systemd/system, so they exist unmerged; each must gate on the script it runs,
+# and the watchdog must wait for the pool's script.
+bad=""
+for u in mergerfs-pool.service snapraid-sync.service snapraid-scrub.service; do
+    ex="$(sed -n 's/^ExecStart=\(\/usr\/lib\/mergerfs-snapraid\/[^ ]*\).*/\1/p' "$REPO/units/$u")"
+    grep -qx "ConditionPathExists=$ex" "$REPO/units/$u" || bad="$bad $u"
+    grep -q '^ConditionPathExists=/usr/bin/' "$REPO/units/$u" && bad="$bad $u(base-path)"
+done
+grep -q '\[ -x /usr/lib/mergerfs-snapraid/start-pool.sh \] && exec systemctl start mergerfs-pool.service' \
+    "$REPO/units/mergerfs-pool-watchdog.service" || bad="$bad watchdog"
+if [ -z "$bad" ]; then
+    pass "units gate on their own sysext script, not on a binary the base image also ships"
+else
+    fail "merge signal is a path the base image may ship:$bad"
+fi
+
 # --- forum #21 journal: "Configuration file ... is marked executable" --------------
 # Static check (install.sh needs root + systemd): the unit copy must end in 0644.
 if grep -q 'chmod 0644 "\$UNIT_DIR/\$(basename "\$u")"' "$REPO/install.sh"; then

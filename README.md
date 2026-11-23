@@ -214,11 +214,14 @@ Files app) with the unit's last journal lines, then runs `NOTIFY_CMD` if set, e.
     path (the old `ConditionPathExists=/usr/bin/mergerfs` + watchdog `[ -x ]`) is
     useless: it is satisfied **before** the merge by the stale base binary, which
     then rejects modern `-o` options and fails `mergerfs-pool.service` → the watchdog
-    that re-`start`s it also fails. **Fix:** gate on **`/usr/bin/snapraid`**, which is
-    provided *only* by this sysext, so its presence truly means "merge done"; the
-    watchdog waits up to 60s for it and never false-fails. `start-pool.sh` carries the
-    same guard for manual runs. *Verified on nas-main (2026-06-05):* with the sysext
-    unmerged, `/usr/bin/mergerfs`=v1.5.4 exists while `/usr/bin/snapraid` is absent.
+    that re-`start`s it also fails. **Fix:** each unit gates on **the script it runs**
+    (`/usr/lib/mergerfs-snapraid/*.sh`), which only this sysext ships, so its presence
+    truly means "merge done"; the watchdog waits up to 60s for `start-pool.sh` and never
+    false-fails. Until 2026-11-23 the gate was `/usr/bin/snapraid`, but ZimaOS 1.8.1
+    ships snapraid 15.1 (and mergerfs 2.42.0) in its base image, so that path exists
+    unmerged too. The unit files live in `/etc/systemd/system`, so they exist unmerged.
+    *Verified on nas-main (2026-06-05, ZimaOS 1.6.1):* with the sysext unmerged,
+    `/usr/bin/mergerfs`=v1.5.4 exists while `/usr/bin/snapraid` is absent.
   - **(2) automount race — empty/degraded pool.** The ZimaOS storage daemon mounts
     the data disks at `/media/sdX` late, with **no** unit to order against. mergerfs
     2.42 does *not* fail on an unmounted/missing branch (verified: exit 0) — it mounts
