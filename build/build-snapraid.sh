@@ -8,7 +8,7 @@
 set -eu
 
 ARCH="${1:?usage: build-snapraid.sh <amd64|arm64>}"
-SNAPRAID_VERSION="${SNAPRAID_VERSION:-15.0}"
+SNAPRAID_VERSION="${SNAPRAID_VERSION:-15.2}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 OUT="${HERE}/out"
 mkdir -p "$OUT"

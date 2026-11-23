@@ -75,8 +75,8 @@ Rows tagged **hw** were checked live on a ZimaCube Pro (v1.6.1, kernel
 | build tooling | `mksquashfs 4.6.1`, `docker 27.5.1`, `curl`, `unsquashfs` all present on host | sicher (hw) |
 | mergerfs static tarball | `mergerfs-2.42.0-static-linux_{amd64,arm64}.tar.gz` exists (+ armhf/i386/riscv64) | sicher |
 | mergerfs internal layout | tarball ships `usr/local/bin/{mergerfs,mergerfs-fusermount,fsck.mergerfs,mergerfs.collect-info}`, `usr/local/lib/mergerfs/preload.so`, `sbin/mount.mergerfs` → **we relocate to `/usr/bin`, `/usr/lib`, `/usr/sbin`** | sicher (hw) |
-| SnapRAID | source `snapraid-15.0.tar.gz` (sha256 `ceba44e1…ce19` = release digest); pure userspace C, no kernel/daemon dep | sicher |
-| Version pins | mergerfs `2.42.0` and SnapRAID `15.0` (2026-10-16; moved from 14.5 on 2026-10-17 after a host test: guard parsing, check, fix, and content files readable by 14.5 and 15.0 in both directions — `docs/TESTLOG.md`) | sicher |
+| SnapRAID | source `snapraid-15.2.tar.gz` (sha256 `0740169f…85c5` = release digest); pure userspace C, no kernel/daemon dep | sicher |
+| Version pins | mergerfs `2.42.0` and SnapRAID `15.2` (moved from 15.0 on 2026-11-23: guard parsing, check, fix, and content files readable by 15.0 and 15.2 in both directions; ZimaOS 1.8.1 ships 15.1 in the base image, the module's binary takes precedence — `docs/TESTLOG.md`) | sicher |
 | systemd ARCH token | `x86-64` (amd64), `arm64` (arm64) — used in `extension-release` | sicher |
 | ZimaOS | `ID=zimaos`, `VERSION_ID=1.6.1`, ZimaCube amd64 | sicher (hw) |
 | Data-disk mounts | ZimaOS automounts at `/media/sdX` (+ bind `/DATA/.media/`); current test disk `/media/sda` = `/dev/sdb` **exFAT** (1 disk only) | sicher (hw) |
@@ -416,7 +416,7 @@ is not legal advice.
 | Program | Version | License (upstream file) | Source |
 |---|---|---|---|
 | [mergerfs](https://github.com/trapexit/mergerfs) | 2.42.0 (binaries from the official static release tarball, only relocated to `/usr`; SHA256 pinned in `build/build-sysext.sh`) | ISC (`LICENSE`) | `https://github.com/trapexit/mergerfs/releases/download/2.42.0/` |
-| [SnapRAID](https://www.snapraid.it) | 15.0 (built statically from the release tarball, SHA256 pinned in `build/Dockerfile.snapraid`) | GPL-3.0-or-later (`COPYING`: "The SnapRAID project as a whole … is provided under the GPL-3.0-or-later License") | `https://github.com/amadvance/snapraid/releases/download/v15.0/snapraid-15.0.tar.gz` |
+| [SnapRAID](https://www.snapraid.it) | 15.2 (built statically from the release tarball, SHA256 pinned in `build/Dockerfile.snapraid`) | GPL-3.0-or-later (`COPYING`: "The SnapRAID project as a whole … is provided under the GPL-3.0-or-later License") | `https://github.com/amadvance/snapraid/releases/download/v15.2/snapraid-15.2.tar.gz` |
 
 The SnapRAID binary in the image is built from exactly that source tarball with `build/Dockerfile.snapraid`
 (no patches), so the corresponding source and the build recipe are in this repository's `build/` folder and the
