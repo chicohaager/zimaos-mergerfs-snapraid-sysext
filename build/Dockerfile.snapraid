@@ -5,10 +5,10 @@
 # Build per arch via build-snapraid.sh (uses buildx --platform).
 
 FROM debian:bookworm AS build
-ARG SNAPRAID_VERSION=15.0
+ARG SNAPRAID_VERSION=15.2
 # Pinned SHA256 of the SnapRAID source tarball (supply-chain integrity). Bump together
 # with SNAPRAID_VERSION; a mismatch (tampered/MITM'd/changed asset) fails the build.
-ARG SNAPRAID_SHA256=ceba44e15566386d923d6895ecab81f7437848b03a4cf9585c02d3636197ce19
+ARG SNAPRAID_SHA256=0740169f66c506c29846a5aef57d2b11ffe5c354c5bb0ba260f2b5f328f985c5
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential ca-certificates wget automake autoconf libtool pkg-config \
     && rm -rf /var/lib/apt/lists/*

@@ -383,3 +383,29 @@ Script: `mergerfs-guards-test.sh` in the maintainer's host-script collection.
 | 6 | afterwards | 0 failed units, the box's 4 containers unchanged | — |
 
 **Cleanup:** original image back (sha256 `0a4bb551…`), no test mounts, config and defaults removed — 8 of 8 checks, after both runs.
+
+## 2026-11-23 — SnapRAID 15.0 → 15.2 (content files both ways; module on ZimaOS 1.8.1-beta1)
+
+Why: ZimaOS 1.8.1-beta1 ships `snapraid` v15.1 in the base image (`/usr/bin/snapraid` of the new RAUC slot), and the
+module's v15.0 sat on top of it. Upstream's latest is v15.2 (2026-11-16): on Linux, `up`/`down`/`smart`/`probe` now
+skip disks on FUSE, tmpfs, NFS and CIFS instead of failing. Source tarball sha256 `0740169f…85c5` — computed here and
+equal to the digest the GitHub release API lists for the asset.
+
+**Content-file compatibility** (workstation, both static binaries from this repo's build, data disks on two separate
+tmpfs, parity and one content file on ext4, 20 random files):
+
+| # | Step | Result |
+|---|---|---|
+| 1 | 15.0 `sync` | rc=0 |
+| 2 | 15.2 `diff` on the 15.0 content file | rc=0, summary found, removed=0 |
+| 3 | 15.2 `check` on the 15.0 array | rc=0 |
+| 4 | delete 3 files, 15.2 `diff`, parsed with the exact expressions of `snapraid-sync.sh` | rc=2, `17 equal` / `3 removed`, guard reads removed=3 |
+| 5 | 15.2 `sync` | rc=0 |
+| 6 | 15.0 `diff` / `check` on the 15.2 content file | rc=0 / rc=0 |
+| 7 | delete a synced file, 15.2 `fix -m` | rc=0, restored file sha256-identical |
+
+Control: the same run with a 15.2 wrapper that drops the `equal` line failed in steps 2 and 4 (`NOSUMMARY`).
+
+**On a ZimaBoard 2, ZimaOS 1.8.1-beta1:** image built from this branch (sha256 `bdf5ecc4…`) replaced the v1.2.2 image,
+`systemd-sysext refresh` → `/usr/bin/snapraid` reports v15.2 (`ldd`: not a dynamic executable), mergerfs v2.42.0,
+0 failed units. No pool is configured on that box, so pool and timers were not part of this run.
